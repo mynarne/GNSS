@@ -1,8 +1,13 @@
 ### 스마트폰 앱이랑 위치 데이터 주고 받기
 
-from flask import Blueprint, jsonify, request
 from pynmeagps import NMEAMessage
+
+from flask import Blueprint, jsonify, request, g
+from gnss_app.models.user import db
+from gnss_app.models.visit_log import VisitLog
+from gnss_app.models.travel import Group, GroupMember
 from gnss_app.views.auth_view import login_required
+
 from gnss_app.algorithms.trilateration import calculate_position
 from gnss_app.algorithms.kalman_filter import SimpleKalmanFilter
 
@@ -68,7 +73,7 @@ def parse_nmea():
 ######################################################################################################
 
 
-# 앱에서 실시간으로 쏘는 좌표를 DB에 저장하는 API
+# 앱에서 실시간으로 쏘는 좌표를 DB에 저장하는 로직
 @bp.route("/track", methods=["POST"])
 @login_required
 def track_location():
@@ -87,6 +92,44 @@ def track_location():
     db.session.commit()
 
     return jsonify({"status": "success", "message": "위치 궤적 저장 완료!"})
+
+
+# 위치 기반 인증 및 방문 기록 생성 로직
+@bp.route("/visit", methods=["POST"])
+@login_required
+def record_visit():
+    user = g.user
+    data = request.get_json()
+
+    group_id = data.get("group_id")
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
+
+    if not group_id or latitude is None or longitude is None:
+        return jsonify({"status": "error", "message": "필수 입력값이 누락되었습니다!"}), 400
+
+    # 해당 방(그룹)과 유저가 연결되어 있는지 확인
+    membership = GroupMember.query.filter_by(user_id=user.id, group_id=group_id).first()
+    if not membership:
+        return jsonify({"status": "error", "message": "해당 방에 가입되어 있지 않습니다!"}), 403
+
+    # 방문 로그 생성 (방별 닉네임 함께 저장)
+    new_log = VisitLog(
+        user_id=user.id,
+        group_id=group_id,
+        room_nickname=membership.room_nickname, # 방별 닉네임 적용
+        latitude=latitude,
+        longitude=longitude
+    )
+
+    db.session.add(new_log)
+    db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": f"'{membership.room_nickname}'님의 방문 인증이 성공적으로 기록되었습니다!",
+        "log_id": new_log.id
+    })
 
 
 # 404 에러 핸들러

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>방 상세 정보</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+    <div class="container py-5">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary mb-3">&larr; 대시보드 돌아가기</a>
+
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2>방(그룹) 상세 정보</h2>
+            </div>
+            <div class="card-body">
+                <p><strong>방 이름:</strong> {{ group.name }}</p>
+                <p><strong>최대 인원 수:</strong> {{ group.max_members }} 명</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">참여 중인 유저 및 방별 닉네임</div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>유저 ID</th>
+                            <th>이름</th>
+                            <th>방 내 닉네임</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in members %}
+                        <tr>
+                            <td>{{ m.user_id }}</td>
+                            <td>{{ m.username }}</td>
+                            <td>{{ m.room_nickname }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center">이 방에 참여 중인 유저가 없습니다.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

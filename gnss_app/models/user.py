@@ -30,6 +30,8 @@ class User(db.Model):
     status = db.Column(db.String(20), default='active') # active, dormant, pending_delete
     deactived_at = db.Column(db.DateTime, nullable=True)
 
+    trajectories = db.relationship('Trajectory', backref='user_owner', lazy='dynamic')
+
     # 유저가 남긴 모든 방문 기록
     logs = db.relationship('VisitLog', backref='author', lazy=True)
 
