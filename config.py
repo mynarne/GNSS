@@ -7,7 +7,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or '1q2w3e4r!!'
 
-    # SQLAlchemy가 사용할 DB 경로 (기본적으로 SQLite를 사용합니다)
+    # SQLAlchemy가 사용할 DB 경로 (기본적으로 SQLite를 사용)
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///gnss_project.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

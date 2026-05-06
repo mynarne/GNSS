@@ -26,6 +26,10 @@ class User(db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=get_kst_now)
 
+    # 1년 휴면 처리 및 탈퇴 유예 상태 컬럼 추가
+    status = db.Column(db.String(20), default='active') # active, dormant, pending_delete
+    deactived_at = db.Column(db.DateTime, nullable=True)
+
     # 유저가 남긴 모든 방문 기록
     logs = db.relationship('VisitLog', backref='author', lazy=True)
 
