@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2>🗺️ 새 여행 계획 짜기</h2>
+    <hr>
+    <form action="{{ url_for('plan.create_plan') }}" method="POST">
+        <div class="mb-3">
+            <label class="form-label">여행 제목</label>
+            <input type="text" name="title" class="form-control" placeholder="예: 와 재미있겠다" required>
+        </div>
+
+        <div id="plan-items">
+            <div class="card mb-3 p-3 item-box">
+                <h5>장소 1</h5>
+                <div class="row g-2">
+                    <div class="col-3">
+                        <input type="number" name="day[]" class="form-control" placeholder="n일차" value="1" required>
+                    </div>
+                    <div class="col-9">
+                        <input type="text" name="place[]" class="form-control" placeholder="어디감? (지명 입력)" required>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <input type="text" name="memo[]" class="form-control" placeholder="메모 (예: 100만엔으로 가챠하기)">
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary mb-3" onclick="addItem()">+ 장소 추가</button>
+        <hr>
+        <button type="submit" class="btn btn-primary w-100">계획 저장하고 지도로 보기</button>
+    </form>
+</div>
+
+<script>
+    function addItem() {
+        const container = document.getElementById('plan-items');
+        const itemCount = container.getElementsByClassName('item-box').length + 1;
+        const div = document.createElement('div');
+        div.className = 'card mb-3 p-3 item-box';
+        div.innerHTML = `
+            <h5>📍 장소 ${itemCount}</h5>
+            <div class="row g-2">
+                <div class="col-3">
+                    <input type="number" name="day[]" class="form-control" placeholder="n일차" value="1" required>
+                </div>
+                <div class="col-9">
+                    <input type="text" name="place[]" class="form-control" placeholder="어디 감? (지명 입력)" required>
+                </div>
+            </div>
+            <div class="mt-2">
+                <input type="text" name="memo[]" class="form-control" placeholder="메모">
+            </div>
+        `;
+        container.appendChild(div);
+    }
+</script>
+{% endblock %}

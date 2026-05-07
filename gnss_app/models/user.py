@@ -42,3 +42,6 @@ class User(db.Model):
     # 비밀번호 확인
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    # 관리자 권한을 위한 역할 추가 (기본값 user, 관리자는 admin으로 지정)
+    role = db.Column(db.String(20), default='user', nullable=False)

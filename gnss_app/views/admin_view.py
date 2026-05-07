@@ -1,14 +1,19 @@
 ### 관리자 페이지 라우터
 
 from flask import Blueprint, render_template
+
 from gnss_app.models.user import User
 from gnss_app.models.travel import Group, GroupMember
 from gnss_app.models.trajectory import Trajectory
 from gnss_app.models.visit_log import VisitLog
 
+from gnss_app.views.auth_view import login_required, admin_required
+
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 @bp.route("/")
+@login_required
+@admin_required
 def dashboard():
     # 주요 데이터 조회
     users = User.query.all()
@@ -31,6 +36,8 @@ def dashboard():
 
 
 @bp.route("/group/<int:group_id>")
+@login_required
+@admin_required
 def group_detail(group_id):
     # 클릭한 방(그룹) 정보 조회
     group = Group.query.get_or_404(group_id)

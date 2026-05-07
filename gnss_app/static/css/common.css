@@ -1,0 +1,47 @@
+/* 공용 스타일 및 토스트 알림 */
+
+
+:root {
+    --sky-blue: #87CEEB;
+}
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Pretendard', sans-serif;
+}
+
+.navbar {
+    background: white;
+    border-bottom: 2px solid var(--sky-blue);
+}
+
+/* 토스트 컨테이너 */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+/* 토스트 개별 박스 */
+.custom-toast {
+    background: white;
+    border-left: 5px solid var(--sky-blue);
+    padding: 15px 25px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-weight: 600;
+    color: #334155;
+    /* 애니메이션 설정 */
+    transform: translateX(120%);
+    transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.custom-toast.show {
+    transform: translateX(0);
+}
+
+.custom-toast.hide {
+    transform: translateX(120%);
+}

@@ -24,13 +24,15 @@ def create_app():
         from gnss_app.models import user, travel, trajectory, visit_log
 
     # 뷰 블루프린트 등록
-    from gnss_app.views import location_view, auth_view, group_view, trajectory_view, admin_view
+    from gnss_app.views import location_view, auth_view, group_view, trajectory_view, admin_view, map_view, plan_view
 
     app.register_blueprint(location_view.bp)
     app.register_blueprint(auth_view.bp)
     app.register_blueprint(group_view.bp)
     app.register_blueprint(trajectory_view.bp)
     app.register_blueprint(admin_view.bp)
+    app.register_blueprint(map_view.bp)
+    app.register_blueprint(plan_view.bp)
 
     # 세션 만료 시간 설정 (예시: 30일 동안 자동 로그인 유지)
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>EveryTripLog - 지도 엔진 가동</title>
+    <style>
+        /* 지도가 꽉 차게 보이게 설정 */
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>지도 테스트</h1>
+    <div id="map"></div>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api }}&callback=initMap" async defer></script>
+
+    <script>
+        function initMap() {
+            const centerLoc = { lat: 34.6687, lng: 135.5013 };
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 16,
+                center: centerLoc,
+            });
+
+            // 서버에서 좌표 가져오기
+            fetch('/map/api/test-path')
+                .then(response => response.json())
+                .then(data => {
+                    // 마커 찍기 (시작점)
+                    new google.maps.Marker({
+                        position: data[0],
+                        map: map,
+                        label: "시작"
+                    });
+
+                    // 선 긋기 (Polyline)
+                    const flightPath = new google.maps.Polyline({
+                        path: data,
+                        geodesic: true,
+                        strokeColor: "#FF0000",
+                        strokeOpacity: 1.0,
+                        strokeWeight: 4,
+                    });
+
+                    flightPath.setMap(map);
+
+                    // 마지막 점에 마커
+                    new google.maps.Marker({
+                        position: data[data.length - 1],
+                        map: map,
+                        label: "끝"
+                    });
+                });
+        }
+    </script>
+</body>
+
+</html>

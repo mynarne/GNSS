@@ -2,7 +2,8 @@
 
 import functools
 import random
-from flask import Blueprint, request, jsonify, session, g
+from textwrap import wrap
+from flask import Blueprint, request, jsonify, session, g, abort
 from gnss_app.models.user import db, User
 from datetime import datetime, timezone, timedelta
 
@@ -26,6 +27,22 @@ def load_logged_in_user():
         g.user = User.query.get(user_id)
 
 
+# 관리자 권한 데코레이터
+def admin_required(ar):
+    @functools.wraps(ar)
+    def decorated_function(*args, ** kwargs):
+        # 로그인 되어 있지 않거나 g.user가 없는 경우
+        if not g.user:
+            abort(401) # 인증되지 않음
+
+        # 로그인 유저의 role이 admin이 아닌 경우
+        if g.user.role != 'admin':
+            abort(403) # 접근 권한 없음 (Forbidden)
+
+        return ar(*args, **kwargs)
+    return decorated_function
+
+
 # API용 로그인 검증 데코레이터
 def login_required(view):
     @functools.wraps(view)
@@ -36,8 +53,8 @@ def login_required(view):
                 "status": "error",
                 "message": "로그인이 필요한 서비스입니다!"
             }), 401
-        return view(*args, **kwargs)
 
+        return view(*args, **kwargs)
     return wrapped_view
 
 

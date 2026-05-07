@@ -11,6 +11,7 @@ def get_kst_now():
     return datetime.now(kst)
 
 
+# 그룹 테이블
 class Group(db.Model):
     __tablename__ = 'groups'
 
@@ -22,6 +23,7 @@ class Group(db.Model):
     created_at = db.Column(db.DateTime, default=get_kst_now)
 
 
+# 그룹 내 멤버 테이블
 class GroupMember(db.Model):
     __tablename__ = 'group_members'
 
@@ -52,3 +54,41 @@ class GroupMember(db.Model):
 
 #     is_verified = db.Column(db.Boolean, default=False) # 알고리즘 검증 여부
 #     created_at = db.Column(db.DateTime, default=get_kst_now)
+
+
+# 여행 계획 틀 테이블
+class TravelPlan(db.Model):
+    __tablename__ = 'travel_plans'
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False) # 여행 제목
+    start_date = db.Column(db.Date) # 여행 시작일
+    end_date = db.Column(db.Date)   # 여행 종료일
+    created_at = db.Column(db.DateTime, default=get_kst_now)
+
+    # 그룹과의 관계 설정
+    group = db.relationship("Group", backref=db.backref("plans", cascade="all, delete-orphan"))
+
+
+# 상세 n일 차 방문 장소 테이블 (AI 추천 동선 및 유저 계획 저장 목적)
+class PlanItem(db.Model):
+    __tablename__ = 'plan_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey('travel_plans.id'), nullable=False)
+
+    day_number = db.Column(db.Integer, default=1, nullable=False) # 1일차, 2일차...
+    visit_order = db.Column(db.Integer, nullable=False)           # 방문 순서 (1, 2, 3...)
+
+    place_name = db.Column(db.String(200), nullable=False)        # 유저가 입력한 지명
+    memo = db.Column(db.Text)                                     # 해당 장소에서 할 내용 등의 간단한 메모
+
+    # AI가 지명을 기반으로 찾아줄 좌표 (지도 표시용)
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+
+    # 이 동선이 AI가 짜준 건지, 유저가 직접 넣은 건지 구분 (나중에 확장성용)
+    is_ai_recommended = db.Column(db.Boolean, default=False)
+
+    plan = db.relationship("TravelPlan", backref=db.backref("items", cascade="all, delete-orphan", order_by="PlanItem.visit_order"))
