@@ -1,0 +1,56 @@
+<!-- 관리자 1:1 문의 모아보기 -->
+
+{% extends "base.html" %}
+
+{% block title %}문의 관리 - EveryTripLog Admin{% endblock %}
+
+{% block content %}
+<div class="etl-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold" style="color: var(--sky-blue);">
+            <i class="fa-solid fa-inbox me-2"></i>1:1 문의 관리 (관리자용)
+        </h3>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">대시보드로 돌아가기</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>번호</th>
+                    <th>작성자</th>
+                    <th>제목</th>
+                    <th>작성일</th>
+                    <th>상태</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inquiry in inquiries %}
+                <tr>
+                    <td>{{ inquiry.id }}</td>
+                    <td>{{ inquiry.user.username }}</td>
+                    <td>{{ inquiry.title }}</td>
+                    <td>{{ inquiry.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        {% if inquiry.is_answered %}
+                        <span class="badge bg-success">처리 완료</span>
+                        {% else %}
+                        <span class="badge bg-danger">미처리</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary"
+                            style="background-color: var(--sky-blue); border:none;">답변하기</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">현재 접수된 문의가 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

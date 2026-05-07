@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}마이페이지 - EveryTripLog{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mypage.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-5 mb-4">
+        <div class="etl-card h-100">
+            <h4 class="mypage-title">
+                <i class="fa-solid fa-user-pen mypage-icon"></i>회원 정보 수정
+            </h4>
+            <form action="{{ url_for('mypage.edit_profile') }}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label text-muted">사용자 이름</label>
+                    <input type="text" name="username" class="form-control" value="{{ g.user.username }}" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted">연락처</label>
+                    <input type="text" name="phone_number" class="form-control" value="{{ g.user.phone_number or '' }}"
+                        placeholder="010-0000-0000">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 btn-bouncy mypage-submit-btn">
+                    정보 수정하기
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-7 mb-4">
+        <div class="etl-card h-100">
+            <h4 class="mypage-title">
+                <i class="fa-solid fa-headset mypage-icon"></i>1:1 문의하기
+            </h4>
+            <form action="{{ url_for('mypage.create_inquiry') }}" method="POST" class="mb-5">
+                <div class="mb-3">
+                    <input type="text" name="title" class="form-control" placeholder="문의 제목을 입력해주세요" required>
+                </div>
+                <div class="mb-3">
+                    <textarea name="content" class="form-control" rows="4" placeholder="문의하실 내용을 상세히 적어주세요"
+                        required></textarea>
+                </div>
+                <button type="submit" class="btn btn-dark w-100 inquiry-submit-btn">문의 접수하기</button>
+            </form>
+
+            <hr class="mb-4">
+
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-list mypage-icon"></i>나의 문의 내역</h5>
+            {% if inquiries %}
+            <div class="list-group">
+                {% for inquiry in inquiries %}
+                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1 fw-bold">{{ inquiry.title }}</h6>
+                        <small class="text-muted">{{ inquiry.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                    {% if inquiry.is_answered %}
+                    <span class="badge bg-success rounded-pill">답변 완료</span>
+                    {% else %}
+                    <span class="badge bg-secondary rounded-pill">답변 대기</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4">등록된 문의 내역이 없습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

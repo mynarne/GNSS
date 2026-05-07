@@ -3,7 +3,7 @@
 import functools
 import random
 from textwrap import wrap
-from flask import Blueprint, request, jsonify, session, g, abort
+from flask import Blueprint, request, jsonify, session, g, abort, render_template, redirect, url_for
 from gnss_app.models.user import db, User
 from datetime import datetime, timezone, timedelta
 
@@ -59,54 +59,64 @@ def login_required(view):
 
 
 # 회원가입 로직
-@bp.route("/signup", methods=["POST"])
+@bp.route("/signup", methods=["GET", "POST"])
 def signup():
-    data = request.get_json()
-    email = data.get("email")
-    phone_number = data.get("phone_number")
-    username = data.get("username")
-    password = data.get("password")
 
-    if User.query.filter_by(email=email).first():
-        return jsonify({"status": "error",
-                        "message": "이미 존재하는 이메일입니다!"}), 400
+    if request.method == "POST":
+        data = request.get_json()
+        email = data.get("email")
+        phone_number = data.get("phone_number")
+        username = data.get("username")
+        password = data.get("password")
 
-    if User.query.filter_by(phone_number=phone_number).first():
-        return jsonify({"status": "error",
-                        "message": "이미 존재하는 전화번호입니다!"})
+        if User.query.filter_by(email=email).first():
+            return jsonify({"status": "error",
+                            "message": "이미 존재하는 이메일입니다!"}), 400
 
-    new_user = User(username=username, email=email, phone_number=phone_number)
-    new_user.set_password(password) # 암호화해서 저장
+        if User.query.filter_by(phone_number=phone_number).first():
+            return jsonify({"status": "error",
+                            "message": "이미 존재하는 전화번호입니다!"}), 400
 
-    db.session.add(new_user)
-    db.session.commit()
+        new_user = User(username=username, email=email, phone_number=phone_number)
+        new_user.set_password(password) # 암호화해서 저장
 
-    return jsonify({"status": "success",
-                    "message": f"{username}님, 가입을 환영합니다!"})
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({"status": "success",
+                        "message": f"{username}님, 가입을 환영합니다!"})
+
+    # GET 방식일 때
+    return render_template("auth/signup.html")
 
 
 # 로그인 로직
-@bp.route("/login", methods=["POST"])
+@bp.route("/login", methods=["GET", "POST"])
 def login():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
 
-    user = User.query.filter_by(email=email).first()
+    if request.method == "POST":
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
 
-    if user and user.check_password(password):
-        # 로그인 성공 시 세션에 유저 ID 저장
-        session.clear()
+        user = User.query.filter_by(email=email).first()
 
-        # 자동 로그인 기능 - 브라우저를 닫아도 로그인 유지
-        session.permanent = True
+        if user and user.check_password(password):
+            # 로그인 성공 시 세션에 유저 ID 저장
+            session.clear()
 
-        session["user_id"] = user.id
-        session["username"] = user.username
-        return jsonify({"status": "success", "message": f"{user.username}님, 어서오세요!"})
+            # 자동 로그인 기능 - 브라우저를 닫아도 로그인 유지
+            session.permanent = True
 
-    return jsonify({"status": "error",
-                    "message": "이메일이나 비밀번호가 일치하지 않습니다!"}), 401
+            session["user_id"] = user.id
+            session["username"] = user.username
+            return jsonify({"status": "success", "message": f"{user.username}님, 어서오세요!"})
+
+        return jsonify({"status": "error",
+                        "message": "이메일이나 비밀번호가 일치하지 않습니다!"}), 401
+
+    # GET 방식일 때
+    return render_template("auth/login.html")
 
 
 # 로그아웃 로직 (세션 종료)
@@ -114,6 +124,11 @@ def login():
 @login_required
 def logout():
     session.clear()
+
+    # 웹에서 로그아웃 시 메인페이지로 이동
+    if not request.is_json:
+        return redirect(url_for("main.index"))
+
     return jsonify({"status": "success",
                     "message": "로그아웃 되었습니다!"})
 
@@ -122,6 +137,10 @@ def logout():
 @bp.route("/mypage", methods=["GET"])
 @login_required
 def get_mypage():
+
+    # 웹에서 접속했을 때 보여질 HTML
+    if not request.is_json:
+        return render_template("auth/mypage.html")
 
     return jsonify({
         "status": "success",
@@ -133,12 +152,18 @@ def get_mypage():
 
 
 # 회원정보 수정 로직
-@bp.route("/mypage/update", methods=["PUT"])
+@bp.route("/mypage/update", methods=["GET", "PUT", "POST"])
 @login_required
 def update_profile():
     # g.user를 통해 현재 로그인된 유저 객체 가져오기
     user = g.user
-    data = request.get_json()
+
+    # 웹에서 수정 화면 보여질 HTML
+    if request.method == "GET":
+        return render_template("auth/mypage.html")
+
+    # 웹 폼은 PUT 방식을 지원 안 하는 경우도 많아서 POST도 같이 처리
+    data = request.get_json() if request.is_json else request.form
 
     # 보안 검증: 비밀번호를 한 번 더 확인하여 본인 인증
     current_password = data.get("current_password")
@@ -175,8 +200,8 @@ def update_profile():
     # 실제 DB 값 변경 로직
     if new_email and new_email != user.email:
         user.email = new_email
-    if new_phone and new_phone != user.phone:
-        user.phone = new_phone
+    if new_phone and new_phone != user.phone_number:
+        user.phone_number = new_phone
 
     # 유저이름 변경
     if new_username:
@@ -249,7 +274,7 @@ def verify_code():
         return jsonify({"status": "error", "message": "인증번호가 일치하지 않거나 만료되었습니다!"}), 400
 
     # 유효시간(3분) 검증
-    saved_time = datetime.fromisocalendar(saved_time_str)
+    saved_time = datetime.fromisoformat(saved_time_str)
     if get_kst_now() - saved_time > timedelta(minutes=3):
         # 3분 지났을 때 세션 초기화
         session.pop('verify_code', None)

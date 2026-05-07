@@ -1,0 +1,41 @@
+<!-- 공용 header -->
+
+<nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">
+            <i class="fa-solid fa-paper-plane me-2"></i>EveryTripLog
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('plan.create_plan') }}">계획 세우기</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('map.map_test') }}">지도 탐색</a>
+                </li>
+            </ul>
+
+            <div class="d-flex align-items-center">
+                {% if g.user %}
+                {% if g.user.role == 'admin' %}
+                <a href="{{ url_for('admin.dashboard') }}" class="me-3 admin-icon" title="관리 시스템">
+                    <i class="fa-solid fa-gear"></i>
+                </a>
+                {% endif %}
+
+                <a href="{{ url_for('mypage.index') }}" class="nav-link me-3 fw-bold">
+                    <i class="fa-solid fa-user-circle me-1"></i>{{ g.user.username }} 님
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="btn-bouncy-white">로그아웃</a>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="btn-bouncy-white">로그인</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>

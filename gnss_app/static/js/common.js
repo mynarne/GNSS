@@ -1,4 +1,4 @@
-// 공용 JS 및 토스트 로직
+// 공용 스크립트 및 토스트 로직
 
 
 function showToast(message) {

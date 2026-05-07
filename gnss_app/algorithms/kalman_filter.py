@@ -1,6 +1,5 @@
 ### 오차 보정용 필터
 
-# gnss_app/algorithms/kalman_filter.py
 import numpy as np
 
 

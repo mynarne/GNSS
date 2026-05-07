@@ -2,10 +2,12 @@
 
 from flask import Blueprint, render_template
 
+from gnss_app.models.inquiry import Inquiry
 from gnss_app.models.user import User
 from gnss_app.models.travel import Group, GroupMember
 from gnss_app.models.trajectory import Trajectory
 from gnss_app.models.visit_log import VisitLog
+from gnss_app.models.inquiry import Inquiry
 
 from gnss_app.views.auth_view import login_required, admin_required
 
@@ -21,6 +23,9 @@ def dashboard():
     trajectories = Trajectory.query.order_by(Trajectory.recorded_at.desc()).limit(20).all()
     visit_logs = VisitLog.query.order_by(VisitLog.visited_at.desc()).limit(20).all()
 
+    # 미처리 1:1 문의 조회 (관리자용)
+    unanswered_inquiries = Inquiry.query.filter_by(is_answered=False).all()
+
     # 통계 데이터 계산
     user_count = len(users)
     group_count = len(groups)
@@ -31,7 +36,8 @@ def dashboard():
         group_count=group_count,
         groups=groups,
         trajectories=trajectories,
-        visit_logs=visit_logs
+        visit_logs=visit_logs,
+        inquiries=unanswered_inquiries
     )
 
 
