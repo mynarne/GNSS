@@ -1,5 +1,30 @@
 /* 관리자 페이지 스타일 */
 
+
+/* 상단 헤더 및 버튼 */
+.admin-header-container {
+    margin-bottom: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-main-return {
+    border: 1px solid #87CEEB;
+    color: #87CEEB;
+    background-color: transparent;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.btn-main-return:hover {
+    background-color: #87CEEB;
+    color: #FFFFFF;
+}
+
 /* 통계 카드 섹션 */
 .admin-stats-row {
     margin-bottom: 32px;
@@ -14,6 +39,10 @@
 
 .stat-card:hover {
     transform: scale(1.05);
+}
+
+.stat-link {
+    text-decoration: none;
 }
 
 .bg-users {
@@ -85,8 +114,74 @@
     border-bottom: 1px solid #f1f5f9;
 }
 
+/* 상세 보기 버튼 전용 */
+.btn-info-detail {
+    background-color: #87CEEB;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    text-decoration: none;
+}
+
+.btn-info-detail:hover {
+    background-color: #00BFFF;
+    color: #FFFFFF;
+}
+
 .btn-detail {
     padding: 6px 12px;
     font-size: 12px;
     border-radius: 6px;
+}
+
+/* 문의 상태 배지 */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-wait {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+.status-done {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+/* 답변 페이지 전용 */
+.info-label {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.static-content {
+    background-color: #f8fafc;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    margin-bottom: 20px;
+}
+
+.answer-textarea {
+    width: 100%;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    min-height: 200px;
+    margin-bottom: 24px;
+}
+
+.admin-action-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
 }

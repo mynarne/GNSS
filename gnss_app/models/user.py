@@ -21,7 +21,8 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    username = db.Column(db.String(80), nullable=False)
+    username = db.Column(db.String(80), nullable=False) # 실명
+    nickname = db.Column(db.String(80), unique=True, nullable=False) # 개별 닉네임
     phone_number = db.Column(db.String(20), unique=True, nullable=False, info={'name': 'uq_user_phone'})
     password_hash = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=get_kst_now)
@@ -34,6 +35,9 @@ class User(db.Model):
 
     # 유저가 남긴 모든 방문 기록
     logs = db.relationship('VisitLog', backref='author', lazy=True)
+
+    # 로그인 경로 파악용
+    provider = db.Column(db.String(20), default='local')
 
     # 비밀번호 설정 (암호화)
     def set_password(self, password):

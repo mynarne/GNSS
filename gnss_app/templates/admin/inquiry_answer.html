@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}답변 작성 - EveryTripLog Admin{% endblock %}
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+    <div class="etl-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold" style="color: var(--sky-blue);">
+                <i class="fa-solid fa-comment-dots me-2"></i>문의 답변 등록
+            </h3>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="info-label">작성자 정보</div>
+                <div class="static-content">{{ inquiry.user.username }} ({{ inquiry.user.email }})</div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-label">등록 시간</div>
+                <div class="static-content">{{ inquiry.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+        </div>
+
+        <div class="info-label">문의 제목</div>
+        <div class="static-content fw-bold">{{ inquiry.title }}</div>
+
+        <div class="info-label">문의 내용</div>
+        <div class="static-content" style="min-height: 150px; white-space: pre-wrap;">{{ inquiry.content }}</div>
+
+        <hr class="my-4">
+
+        <form action="{{ url_for('admin.inquiry_answer', inquiry_id=inquiry.id) }}" method="POST">
+            <div class="info-label">관리자 답변 작성</div>
+            <textarea name="answer" class="answer-textarea" placeholder="이곳에 답변 내용을 작성하세요..." required>{{ inquiry.answer or '' }}</textarea>
+
+            <div class="admin-action-btns">
+                <a href="{{ url_for('admin.inquiry_list') }}" class="btn btn-outline-secondary px-4">취소</a>
+                <button type="submit" class="btn btn-primary px-4" style="background-color: var(--sky-blue); border:none;">답변 저장</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

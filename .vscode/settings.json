@@ -15,5 +15,10 @@
     // 코드 맨 끝에 쓸데없이 남는 공백 자동 삭제
     "files.trimTrailingWhitespace": true,
     // 파일 저장할 때 맨 마지막에 빈 줄 하나 무조건 추가
-    "files.insertFinalNewline": true
+    "files.insertFinalNewline": true,
+    // jinja-html 포맷팅
+    "[jinja-html]": {
+        "editor.defaultFormatter": "samuelcolvin.better-jinja",
+        "editor.formatOnSave": true
+    }
 }

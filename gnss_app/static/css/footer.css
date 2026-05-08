@@ -1,0 +1,9 @@
+/* footer 전용 스타일 */
+
+.main-footer {
+    background: #FFFFFF;
+    padding: 40px 0;
+    border-top: 1px solid #e2e8f0;
+    text-align: center;
+    margin-top: 60px;
+}

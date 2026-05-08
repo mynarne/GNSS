@@ -2,10 +2,13 @@
 
 import functools
 import random
+import re
 from textwrap import wrap
-from flask import Blueprint, request, jsonify, session, g, abort, render_template, redirect, url_for
+from flask import Blueprint, request, jsonify, session, g, abort, render_template, redirect, url_for, flash
 from gnss_app.models.user import db, User
 from datetime import datetime, timezone, timedelta
+from flask_mail import Message
+from gnss_app import mail
 
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -25,6 +28,17 @@ def load_logged_in_user():
     else:
         # 세션에 아이디가 있으면 DB에서 유저 정보를 찾아서 g.user에 넣어줌
         g.user = User.query.get(user_id)
+
+# 전화번호 포맷 함수 (하이픈 자동 처리)
+def format_phone_number(phone_input):
+    if not phone_input:
+        return None
+    numbers_only = re.sub(r'[^0-9]', '', phone_input)
+    if len(numbers_only) == 11:
+        return f"{numbers_only[:3]}-{numbers_only[3:7]}-{numbers_only[7:]}"
+    elif len(numbers_only) == 10:
+        return f"{numbers_only[:3]}-{numbers_only[3:6]}-{numbers_only[6:]}"
+    return numbers_only
 
 
 # 관리자 권한 데코레이터
@@ -49,10 +63,13 @@ def login_required(view):
     def wrapped_view(*args, **kwargs):
         # 유저 정보가 없으면 401(권한 없음) 에러와 JSON을 반환
         if g.user is None:
-            return jsonify({
-                "status": "error",
-                "message": "로그인이 필요한 서비스입니다!"
-            }), 401
+            if request.is_json:
+                return jsonify({
+                    "status": "error",
+                    "message": "로그인이 필요한 서비스입니다!"
+                }), 401
+            flash("로그인이 필요한 서비스입니다!")
+            return redirect(url_for("auth.login"))
 
         return view(*args, **kwargs)
     return wrapped_view
@@ -63,28 +80,47 @@ def login_required(view):
 def signup():
 
     if request.method == "POST":
-        data = request.get_json()
+        data = request.get_json() if request.is_json else request.form
         email = data.get("email")
-        phone_number = data.get("phone_number")
+        raw_phone = data.get("phone_number")
+        phone_number = format_phone_number(raw_phone) # 전화번호 하이픈 정제
         username = data.get("username")
+        nickname = data.get("nickname")
         password = data.get("password")
 
         if User.query.filter_by(email=email).first():
-            return jsonify({"status": "error",
-                            "message": "이미 존재하는 이메일입니다!"}), 400
+            if request.is_json:
+                return jsonify({"status": "error",
+                                "message": "이미 존재하는 이메일입니다!"}), 400
+            flash("이미 존재하는 이메일입니다!")
+            return redirect(url_for("auth.signup"))
+
+        if User.query.filter_by(nickname=nickname).first():
+            if request.is_json:
+                return jsonify({"status": "error",
+                                "message": "이미 존재하는 닉네임입니다!"}), 400
+            flash("이미 존재하는 닉네임입니다!")
+            return redirect(url_for("auth.signup"))
 
         if User.query.filter_by(phone_number=phone_number).first():
-            return jsonify({"status": "error",
-                            "message": "이미 존재하는 전화번호입니다!"}), 400
+            if request.is_json:
+                return jsonify({"status": "error",
+                                "message": "이미 존재하는 전화번호입니다!"}), 400
+            flash("이미 존재하는 전화번호입니다!")
+            return redirect(url_for("auth.signup"))
 
-        new_user = User(username=username, email=email, phone_number=phone_number)
+        new_user = User(username=username, nickname=nickname, email=email, phone_number=phone_number)
         new_user.set_password(password) # 암호화해서 저장
 
         db.session.add(new_user)
         db.session.commit()
 
-        return jsonify({"status": "success",
-                        "message": f"{username}님, 가입을 환영합니다!"})
+        if request.is_json:
+            return jsonify({"status": "success",
+                            "message": f"{username}님, 가입을 환영합니다!"})
+
+        flash(f"{username}님, 가입을 환영합니다!")
+        return redirect(url_for("auth.login"))
 
     # GET 방식일 때
     return render_template("auth/signup.html")
@@ -95,7 +131,7 @@ def signup():
 def login():
 
     if request.method == "POST":
-        data = request.get_json()
+        data = request.get_json() if request.is_json else request.form
         email = data.get("email")
         password = data.get("password")
 
@@ -109,11 +145,19 @@ def login():
             session.permanent = True
 
             session["user_id"] = user.id
-            session["username"] = user.username
-            return jsonify({"status": "success", "message": f"{user.username}님, 어서오세요!"})
 
-        return jsonify({"status": "error",
-                        "message": "이메일이나 비밀번호가 일치하지 않습니다!"}), 401
+            if request.is_json:
+                return jsonify({"status": "success", "message": f"{user.nickname}님, 어서오세요!"})
+
+            flash(f"{user.nickname}님, 어서오세요!")
+            return redirect(url_for("main.index"))
+
+        if request.is_json:
+            return jsonify({"status": "error",
+                            "message": "이메일이나 비밀번호가 일치하지 않습니다!"}), 401
+
+        flash("이메일이나 비밀번호가 일치하지 않습니다!")
+        return redirect(url_for("auth.login"))
 
     # GET 방식일 때
     return render_template("auth/login.html")
@@ -127,110 +171,27 @@ def logout():
 
     # 웹에서 로그아웃 시 메인페이지로 이동
     if not request.is_json:
+        flash("로그아웃 되었습니다!")
         return redirect(url_for("main.index"))
 
     return jsonify({"status": "success",
                     "message": "로그아웃 되었습니다!"})
 
 
-# 마이페이지 로직
-@bp.route("/mypage", methods=["GET"])
-@login_required
-def get_mypage():
 
-    # 웹에서 접속했을 때 보여질 HTML
-    if not request.is_json:
-        return render_template("auth/mypage.html")
+# 차단할 도메인 리스트
+DISALLOWED_DOMAINS = ['test.com', 'example.com', 'sample.com', 'temp.com']
 
-    return jsonify({
-        "status": "success",
-        "username": g.user.username,
-        "email": g.user.email,
-        "phone_number": g.user.phone_number,
-        "created_at": g.user.created_at.strftime('%Y.%m.%D %H:%M:%S')
-    })
+# 도메인 제약 조건
+def if_valid_domain(email):
+    # 이메일 형식에서 도메인 부분만 추출
+    domain = email.split('@')[-1]
+    if domain in DISALLOWED_DOMAINS:
+        return False
+    return True
 
 
-# 회원정보 수정 로직
-@bp.route("/mypage/update", methods=["GET", "PUT", "POST"])
-@login_required
-def update_profile():
-    # g.user를 통해 현재 로그인된 유저 객체 가져오기
-    user = g.user
-
-    # 웹에서 수정 화면 보여질 HTML
-    if request.method == "GET":
-        return render_template("auth/mypage.html")
-
-    # 웹 폼은 PUT 방식을 지원 안 하는 경우도 많아서 POST도 같이 처리
-    data = request.get_json() if request.is_json else request.form
-
-    # 보안 검증: 비밀번호를 한 번 더 확인하여 본인 인증
-    current_password = data.get("current_password")
-    if not current_password or not user.check_password(current_password):
-        return jsonify({"status": "error", "message": "비밀번호가 일치하지 않습니다!"}), 401
-
-    new_username = data.get("username")
-    new_email = data.get("email")
-    new_phone = data.get("phone_number")
-    new_password = data.get("password")
-
-    # 이메일이나 전화번호를 바꿀 때만 작동하는 인증 세션
-    if (new_email and new_email != user.email) or (new_phone and new_phone != user.phone_number):
-        # verify-code에서 통과한 값 확인
-        if not session.get('is_verified'):
-            return jsonify({"status": "error", "message": "이메일/전화번호 변경을 위해 먼저 본인 인증을 해주세요!"}), 403
-
-        # 바꿀 값과 인증받은 값이 일치하는지도 확인
-        if new_email and new_email != session.get('verified_target') and new_phone != session.get('verified_target'):
-             return jsonify({"status": "error", "message": "인증받은 정보와 수정하려는 정보가 다릅니다!"}), 400
-
-    # # 이메일 변경 시 중복 검사
-    # if new_email and new_email != user.email:
-    #     if User.query.filter_by(email=new_email).first():
-    #         return jsonify({"status": "error", "message": "이미 존재하는 이메일입니다!"}), 400
-    #     user.email = new_email
-
-    # # 전화번호 변경 시 중복 검사
-    # if new_phone and new_phone != user.phone_number:
-    #     if User.query.filter_by(phone_number=new_phone).first():
-    #         return jsonify({"status": "error", "message": "이미 존재하는 전화번호입니다!"}), 400
-    #     user.phone_number = new_phone
-
-    # 실제 DB 값 변경 로직
-    if new_email and new_email != user.email:
-        user.email = new_email
-    if new_phone and new_phone != user.phone_number:
-        user.phone_number = new_phone
-
-    # 유저이름 변경
-    if new_username:
-        user.username = new_username
-
-    # 비밀번호 변경 시 암호화 및 기존 세션 만료 처리 (자동 로그아웃 유도)
-    if new_password:
-        user.set_password(new_password)
-        db.session.commit()
-
-        # 비밀번호 변경 시 세션 클리어하여 재로그인 유도
-        session.clear()
-        return jsonify({
-            "status": "success",
-            "message": "비밀번호가 변경되어 다시 로그인이 필요합니다!"
-        }), 200
-
-    # 저장 및 인증 세션 파기 (재사용 방지)
-    db.session.commit()
-    session.pop('is_verified', None)
-    session.pop('verified_target', None)
-
-    return jsonify({
-        "status": "success",
-        "message": "회원정보가 성공적으로 수정되었습니다!",
-    })
-
-
-# 이메일/휴대전화 인증번호 요청 로직 (임시)
+# 이메일/휴대전화 인증번호 요청 로직 (26.05.08 휴대전화 인증 구현x)
 @bp.route("/request-verification", methods=["POST"])
 def request_verification():
     data = request.get_json()
@@ -241,6 +202,10 @@ def request_verification():
     if not target_type or not target_value or not purpose:
         return jsonify({"status": "error", "message": "필수 입력값이 누락되었습니다!"}), 400
 
+    # 도메인 제약 조건 확인 (이메일)
+    if target_type == 'email' and not is_valid_domain(target_value):
+        return jsonify({"status": "error", "message": "사용할 수 없는 이메일 도메인입니다!"}), 400
+
     # 6자리 랜덤 인증번호 생성
     verification_code = str(random.randint(100000, 999999))
 
@@ -249,6 +214,27 @@ def request_verification():
     session['verify_target'] = target_value
     session['verify_purpose'] = purpose
     session['verify_time'] = get_kst_now().isoformat() # 발송된 시간 저장 (KST 기준)
+
+    # 이메일 발송 처리
+    if target_type == 'email':
+        try:
+            subject = "[EveryTripLog] 본인 확인 인증번호 안내"
+            body = f"안녕하세요. EveryTripLog입니다.\n요청하신 인증번호는 [{verification_code}] 입니다.\n3분 이내에 입력해 주세요."
+
+            msg = Message(subject, recipients=[target_value])
+            msg.body = body
+            mail.send(msg)
+
+            return jsonify({"status": "success", "message": "인증메일이 발송되었습니다!"})
+        except Exception as e:
+            print(f"메일 발송 에러: {e}")
+            return jsonify({"status": "error", "message": "메일 발송에 실패했습니다. 관리자에게 문의하세요."}), 500
+
+    # 추후 전화번호 인증번호 기능 추가 시 작성
+    #
+    #
+    #######
+
 
     # 터미널 테스트용
     print(f"\n[목적: {purpose.upper()}]\n {target_type} : {target_value}")

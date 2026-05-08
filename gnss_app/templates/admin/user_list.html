@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}유저 관리 - EveryTripLog Admin{% endblock %}
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="etl-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold" style="color: var(--sky-blue);">
+            <i class="fa-solid fa-users me-2"></i>유저 관리 (관리자용)
+        </h3>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">대시보드로 돌아가기</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="etl-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>이름</th>
+                    <th>계정(이메일)</th>
+                    <th>가입 경로</th>
+                    <th>상태</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ user.provider|upper }}</span></td>
+                        <td><span class="badge bg-success">{{ user.status }}</span></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

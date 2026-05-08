@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASE_DIR = os.path.dirname(__file__)
+
 # 기본 설정 클래스
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or '1q2w3e4r!!'

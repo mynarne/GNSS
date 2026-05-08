@@ -23,7 +23,7 @@ class Trajectory(db.Model):
     recorded_at = db.Column(db.DateTime, default=get_kst_now, index=True)
 
     # 어떤 유저의 경로인지 연결
-    user = db.relationship('User', foreign_keys=[user_id])
+    user = db.relationship('User', foreign_keys=[user_id], overlaps="trajectories, user_owner")
 
     def __repr__(self):
         return f'<Trajectory {self.user_id} at {self.recorded_at}>'

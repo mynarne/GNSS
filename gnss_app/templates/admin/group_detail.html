@@ -34,15 +34,15 @@
                     </thead>
                     <tbody>
                         {% for m in members %}
-                        <tr>
-                            <td>{{ m.user_id }}</td>
-                            <td>{{ m.username }}</td>
-                            <td>{{ m.room_nickname }}</td>
-                        </tr>
+                            <tr>
+                                <td>{{ m.user_id }}</td>
+                                <td>{{ m.username }}</td>
+                                <td>{{ m.room_nickname }}</td>
+                            </tr>
                         {% else %}
-                        <tr>
-                            <td colspan="3" class="text-center">이 방에 참여 중인 유저가 없습니다.</td>
-                        </tr>
+                            <tr>
+                                <td colspan="3" class="text-center">이 방에 참여 중인 유저가 없습니다.</td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>

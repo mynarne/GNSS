@@ -1,0 +1,78 @@
+/* header 전용 스타일 */
+
+.navbar {
+    background-color: var(--sky-blue) !important;
+    padding: 16px 0;
+    box-shadow: 0 4px 12px rgba(135, 206, 235, 0.2);
+}
+
+.navbar-brand {
+    font-weight: 800;
+    font-size: 24px;
+    color: #FFFFFF !important;
+}
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 600;
+    margin: 0 10px;
+    font-size: 16px;
+}
+
+.nav-link:hover {
+    color: #FFFFFF !important;
+    transform: translateY(-2px);
+}
+
+.nav-user-info {
+    color: #FFFFFF;
+    margin-right: 10px;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.btn-header-white {
+    background-color: #FFFFFF;
+    margin-right: 10px;
+    color: var(--sky-blue);
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 14px;
+    text-decoration: none;
+    transition: 0.3s;
+    border: 2px solid #FFFFFF;
+}
+
+.btn-header-white:hover {
+    background-color: transparent;
+    color: #FFFFFF;
+}
+
+.btn-header-outline {
+    background-color: transparent;
+    color: #FFFFFF;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 14px;
+    text-decoration: none;
+    transition: 0.3s;
+    border: 2px solid #FFFFFF;
+}
+
+.btn-header-outline:hover {
+    background-color: #FFFFFF;
+    color: var(--sky-blue);
+}
+
+.admin-icon {
+    color: #FFFFFF;
+    font-size: 18px;
+    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.admin-icon:hover {
+    transform: rotate(90deg) scale(1.2);
+    color: #FFFFFF;
+}

@@ -1,5 +1,6 @@
 <!-- 공용 header -->
 
+
 <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container">
         <a class="navbar-brand" href="{{ url_for('main.index') }}">
@@ -18,22 +19,29 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('map.map_test') }}">지도 탐색</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">공지사항</a>
+                </li>
             </ul>
 
             <div class="d-flex align-items-center">
                 {% if g.user %}
-                {% if g.user.role == 'admin' %}
-                <a href="{{ url_for('admin.dashboard') }}" class="me-3 admin-icon" title="관리 시스템">
-                    <i class="fa-solid fa-gear"></i>
-                </a>
-                {% endif %}
+                    {% if g.user.role == 'admin' %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="me-3 admin-icon" title="관리 시스템">
+                            <i class="fa-solid fa-gear"></i>
+                        </a>
+                    {% endif %}
 
-                <a href="{{ url_for('mypage.index') }}" class="nav-link me-3 fw-bold">
-                    <i class="fa-solid fa-user-circle me-1"></i>{{ g.user.username }} 님
-                </a>
-                <a href="{{ url_for('auth.logout') }}" class="btn-bouncy-white">로그아웃</a>
+                    <span class="nav-user-info me-2">
+                        <i class="fa-solid fa-user-circle me-1"></i>
+                        {% if g.user.role == 'admin' %}관리자{% else %}{{ g.user.nickname }}{% endif %}
+                    </span>
+
+                    <a href="{{ url_for('auth.logout') }}" class="btn-header-white">로그아웃</a>
+                    <a href="{{ url_for('mypage.index') }}" class="btn-header-outline">마이페이지</a>
                 {% else %}
-                <a href="{{ url_for('auth.login') }}" class="btn-bouncy-white">로그인</a>
+                    <a href="{{ url_for('auth.login') }}" class="btn-header-white">로그인</a>
+                    <a href="{{ url_for('auth.signup') }}" class="btn-header-outline">회원가입</a>
                 {% endif %}
             </div>
         </div>

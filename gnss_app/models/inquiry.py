@@ -15,7 +15,10 @@ class Inquiry(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
+
+    answer = db.Column(db.Text, nullable=True)
     is_answered = db.Column(db.Boolean, default=False)
+    answered_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=get_kst_now)
 
     user = db.relationship('User', backref=db.backref('inquiries', lazy=True, cascade="all, delete-orphan"))

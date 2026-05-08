@@ -1,15 +1,16 @@
 ### 관리자 페이지 라우터
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 
-from gnss_app.models.inquiry import Inquiry
-from gnss_app.models.user import User
+from gnss_app.models.user import db, User
 from gnss_app.models.travel import Group, GroupMember
 from gnss_app.models.trajectory import Trajectory
 from gnss_app.models.visit_log import VisitLog
 from gnss_app.models.inquiry import Inquiry
 
 from gnss_app.views.auth_view import login_required, admin_required
+
+from datetime import datetime, timezone, timedelta
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -37,7 +38,8 @@ def dashboard():
         groups=groups,
         trajectories=trajectories,
         visit_logs=visit_logs,
-        inquiries=unanswered_inquiries
+        inquiries=unanswered_inquiries,
+        users=users
     )
 
 
@@ -65,3 +67,38 @@ def group_detail(group_id):
         group=group,
         members=member_list
     )
+
+
+# 유저 목록 보기
+@bp.route("/users-list")
+@login_required
+@admin_required
+def user_list():
+    users = User.query.all()
+    return render_template("admin/user_list.html", users=users)
+
+
+# 문의 리스트 보기
+@bp.route("/inquiries-list")
+@login_required
+@admin_required
+def inquiry_list():
+    inquiries = Inquiry.query.order_by(Inquiry.created_at.desc()).all()
+    return render_template("admin/inquiry_list.html", inquiries=inquiries)
+
+# 답변 등록 페이지
+@bp.route("/inquiry/<int:inquiry_id>/answer", methods=["GET", "POST"])
+@login_required
+@admin_required
+def inquiry_answer(inquiry_id):
+    inquiry = Inquiry.query.get_or_404(inquiry_id)
+    if request.method == "POST":
+        answer_content = request.form.get("answer")
+        inquiry.answer = answer_content
+        inquiry.is_answered = True
+        inquiry.answered_at = datetime.utcnow()
+        db.session.commit()
+        flash("답변이 성공적으로 등록되었습니다.")
+        return redirect(url_for('admin.inquiry_list'))
+
+    return render_template("admin/inquiry_answer.html", inquiry=inquiry)

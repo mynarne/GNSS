@@ -12,6 +12,12 @@
     width: 100%;
     max-width: 480px;
     padding: 48px;
+    transition: none !important;
+}
+
+.auth-card:hover {
+    transform: none !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
 }
 
 .auth-header {
