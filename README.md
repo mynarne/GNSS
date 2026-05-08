@@ -40,7 +40,7 @@
 
 <details>살펴보기
 
-### EveryTripLog 프로젝트 작업 로드맵 (26.05.07 업데이터)
+### EveryTripLog 프로젝트 작업 로드맵 (26.05.08 업데이트)
 
 > 26.05.06
 
@@ -123,5 +123,44 @@
 - 관리자 답변 시스템: 1:1 문의에 대한 관리자 답변 기능 및 상태 업데이트 로직 추가
 
 - React Native 연동: 모바일 앱 환경과의 데이터 동기화를 위한 REST API 최적화
+
+
+> 26.05.08  금일 완료된 작업
+
+#### 1. 인증 및 보안 시스템 고도화 (Auth & Security)
+- 비동기 실시간 검증 도입 (AJAX/Fetch): 회원가입 시 이메일 및 닉네임 중복 여부를 폼 제출 전에 실시간으로 검사하고 피드백을 제공하도록 UI/UX 개선
+
+- 이메일 본인 인증 시스템 구축: Flask-Mail을 활용하여 6자리 난수 인증번호 발송 및 검증 로직 구현. .env를 통한 구글 앱 비밀번호 환경변수 관리로 보안 강화
+
+- 도메인 필터링 방어막: test.com, example.com 등 일회성 및 테스트용 이메일 도메인 가입 원천 차단 로직 적용
+
+- 비밀번호 복잡도 검증: 프론트엔드 및 백엔드 양단에서 영문, 숫자, 특수기호 포함 8~16자 조건을 강제하여 계정 보안성 향상
+
+- 전화번호 데이터 정제: 프론트엔드 자동 하이픈(-) 입력 스크립트 적용 및 백엔드 포맷팅 방어 로직 추가
+
+#### 2. 아키텍처 및 라우터 분리 (Architecture & Routing)
+- 관심사 분리 (Separation of Concerns): * auth_view.py에 혼재되어 있던 마이페이지 로직을 mypage_view.py로 완전 분리하고 Blueprint 맵핑 완료
+
+- API 통신용 라우터(/check-email, /send-verification 등)와 웹 폼 제출용 라우터(/signup)를 분리하여 데이터 처리 흐름 명확화
+
+- 스타일시트(CSS) 모듈화: common.css에 집중되어 있던 스타일을 header.css, footer.css, auth.css, mypage.css, admin.css로 분할하여 유지보수성 극대화
+
+#### 3. 데이터베이스 모델 및 ORM 개선 (Database & Models)
+- User 모델 확장: * 커뮤니티 활동을 위한 중복 불가 nickname 필드 추가
+
+- 향후 소셜 로그인(OAuth) 연동을 대비한 provider 필드 추가
+
+- 마이그레이션 오류 방지를 위해 전화번호 unique 제약조건 명명 (info={'name': 'uq_user_phone'})
+
+- ORM 관계 충돌(SAWarning) 해결: User와 Trajectory 간의 양방향 관계 설정 시 발생하는 중복 복사 경고를 overlaps="trajectories,user_owner" 속성으로 완벽히 해결
+
+- 1:1 문의(Inquiry) 관리 고도화: 관리자 답변 등록을 위한 answer, is_answered, answered_at 컬럼 추가 설계
+
+#### 4. UI/UX 디테일 개선 (Frontend)
+- 관리자 대시보드(Admin) 독립성 확보: base.html의 블록 상속({% block header %})을 활용하여 관리자 페이지 진입 시 불필요한 네비게이션 및 푸터를 숨기고 '메인으로 돌아가기' 버튼 배치
+
+- 인증 폼 애니메이션 제어: 로그인 및 회원가입 시 카드 컴포넌트의 과도한 호버(Hover) 애니메이션을 제어하여 입력 집중도 향상
+
+- 에러 발생 시 데이터 유지: 폼 제출 시 백엔드 검증에서 반려되더라도 기존에 입력했던 데이터가 날아가지 않도록 세션 폼 데이터 바인딩 적용
 
 </details>
