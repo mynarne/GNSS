@@ -11,37 +11,62 @@
         <div class="etl-card auth-card">
             <h2 class="auth-header">회원가입</h2>
             <form action="{{ url_for('auth.signup') }}" method="POST">
-                <div>
+                <div class="mb-3">
                     <label class="auth-label">이메일 주소</label>
-                    <input type="email" name="email" class="auth-input" required>
+                    <div class="input-group">
+                        <input type="email" name="email" id="user-email" class="form-control auth-input-group"
+                               placeholder="example@email.com" value="{{ form_data.get('email', '') if form_data else '' }}" required>
+                        <button type="button" class="btn-auth-action" onclick="sendEmailCode()">인증 발송</button>
+                    </div>
+                    <div id="email-feedback" class="feedback-msg"></div>
                 </div>
 
-                <div>
+                <div class="mb-3" id="verify-section" style="display: none;">
+                    <div class="input-group">
+                        <input type="text" id="verify-code" class="form-control auth-input-group" placeholder="인증번호 6자리">
+                        <button type="button" class="btn-auth-confirm" onclick="confirmCode()">확인</button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
                     <label class="auth-label">사용자 이름</label>
-                    <input type="text" name="username" class="auth-input" required>
+                    <input type="text" name="username" class="auth-input"
+                           value="{{ form_data.get('username', '') if form_data else '' }}" required>
                 </div>
 
-                <div>
+                <div class="mb-3">
                     <label class="auth-label">닉네임</label>
-                    <input type="text" name="nickname" class="auth-input" required>
+                    <div class="input-group">
+                        <input type="text" name="nickname" id="user-nickname" class="form-control auth-input-group"
+                               value="{{ form_data.get('nickname', '') if form_data else '' }}" required>
+                        <button type="button" class="btn-auth-action" onclick="checkNickname()">중복 체크</button>
+                    </div>
+                    <div id="nickname-feedback" class="feedback-msg"></div>
                 </div>
 
-                <div>
+                <div class="mb-3 mt-3">
                     <label class="auth-label">비밀번호</label>
-                    <input type="password" name="password" class="auth-input" required>
+                    <input type="password" name="password" id="user-password" class="form-control auth-input mb-0"
+                           placeholder="영문, 숫자, 특수기호 포함 8~16자" required>
+                    <div id="password-feedback" class="feedback-msg"></div>
                 </div>
 
-                <div>
+                <div class="mb-3 mt-3">
                     <label class="auth-label">비밀번호 확인</label>
-                    <input type="password" name="password_confirm" class="auth-input" required>
+                    <input type="password" name="password_confirm" id="user-password-confirm" class="form-control auth-input mb-0" required>
+                    <div id="password-confirm-feedback" class="feedback-msg"></div>
                 </div>
 
-                <div>
+                <div class="mb-4">
                     <label class="auth-label">연락처</label>
-                    <input type="text" name="phone_number" class="auth-input" placeholder="010-0000-0000" oninput="autoHyphen(this)" maxlength="13" required>
+                    <input type="text" name="phone_number" class="auth-input"
+                           placeholder="010-0000-0000" oninput="autoHyphen(this)" maxlength="13"
+                           value="{{ form_data.get('phone_number', '') if form_data else '' }}" required>
                 </div>
+
                 <button type="submit" class="auth-submit-btn">가입하기</button>
             </form>
+
             <div class="auth-links">
                 <span>이미 계정이 있으신가요?</span>
                 <a href="{{ url_for('auth.login') }}">로그인</a>

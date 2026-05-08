@@ -29,6 +29,19 @@ def load_logged_in_user():
         # 세션에 아이디가 있으면 DB에서 유저 정보를 찾아서 g.user에 넣어줌
         g.user = User.query.get(user_id)
 
+
+# 차단할 도메인 리스트
+DISALLOWED_DOMAINS = ['test.com', 'example.com', 'sample.com', 'temp.com']
+
+# 도메인 제약 조건
+def is_valid_domain(email):
+    # 이메일 형식에서 도메인 부분만 추출
+    domain = email.split('@')[-1]
+    if domain in DISALLOWED_DOMAINS:
+        return False
+    return True
+
+
 # 전화번호 포맷 함수 (하이픈 자동 처리)
 def format_phone_number(phone_input):
     if not phone_input:
@@ -39,6 +52,13 @@ def format_phone_number(phone_input):
     elif len(numbers_only) == 10:
         return f"{numbers_only[:3]}-{numbers_only[3:6]}-{numbers_only[6:]}"
     return numbers_only
+
+
+# 비밀번호 유효성 검사 (영문 + 숫자 + 특수문자 포함 8~16자)
+def is_valid_password(password):
+    # 최소 1개의 영문자, 1개의 숫자, 1개의 특수문자 포함 및 8~16자 제한
+    pattern = r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,16}$'
+    return bool(re.match(pattern, password))
 
 
 # 관리자 권한 데코레이터
@@ -75,11 +95,116 @@ def login_required(view):
     return wrapped_view
 
 
+# 이메일 중복 체크
+@bp.route("/check-email", methods=["POST"])
+def check_email():
+    data = request.get_json()
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"status": "error", "message": "이메일을 입력해주세요."}), 400
+
+    # 도메인 제약 조건 확인
+    if not is_valid_domain(email):
+        return jsonify({"status": "error", "message": "사용할 수 없는 도메인입니다."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        return jsonify({"status": "exists", "message": "이미 가입된 이메일입니다."})
+
+    return jsonify({"status": "available", "message": "사용 가능한 이메일입니다."})
+
+
+# 닉네임 중복 체크
+@bp.route("/check-nickname", methods=["POST"])
+def check_nickname():
+    data = request.get_json()
+    nickname = data.get("nickname")
+
+    if not nickname:
+        return jsonify({"status": "error", "message": "닉네임을 입력해주세요."}), 400
+
+    user = User.query.filter_by(nickname=nickname).first()
+    if user:
+        return jsonify({"status": "exists", "message": "이미 사용 중인 닉네임입니다."})
+
+    return jsonify({"status": "available", "message": "사용 가능한 닉네임입니다."})
+
+
+# 인증번호 발송
+@bp.route("/send-verification", methods=["POST"])
+def send_verification():
+    data = request.get_json()
+    email = data.get("email", "").strip()
+
+    # 발송 전 다시 한번 검증
+    if not is_valid_domain(email) or User.query.filter_by(email=email).first():
+        return jsonify({"success": False, "message": "유효하지 않거나 이미 가입된 이메일입니다."})
+
+    verification_code = str(random.randint(100000, 999999))
+    session['verify_code'] = verification_code
+    session['verify_email'] = email
+    session['verify_time'] = get_kst_now().isoformat()
+
+    try:
+        subject = "[EveryTripLog] 이메일 인증번호 안내"
+        body = f"인증번호는 [{verification_code}] 입니다. 3분 이내에 입력해 주세요."
+        msg = Message(subject, recipients=[email])
+        msg.body = body
+        mail.send(msg)
+        print(f"발송된 인증번호: [{verification_code}]")
+        return jsonify({"success": True, "message": "인증번호가 발송되었습니다."})
+    except Exception as e:
+        print(f"메일 전송 실패: {e}")
+        return jsonify({"success": False, "message": "메일 발송에 실패했습니다."})
+
+
+# 인증번호 확인 로직 (임시)
+# 임시: 인증번호 확인 API
+@bp.route("/verify-code", methods=["POST"])
+def verify_code():
+    data = request.get_json()
+    input_code = data.get("code")
+    target_value = data.get("value") # 내 번호가 맞는지 확인
+
+    saved_code = session.get('verify_code')
+    saved_target = session.get('verify_target')
+    saved_time_str = session.get('verify_time')
+
+    # 세션에 코드가 없거나 코드가 틀렸거나 요청한 번호가 다르면 에러 발생
+    if not saved_code or input_code != saved_code or target_value != saved_target:
+        return jsonify({"status": "error", "message": "인증번호가 일치하지 않거나 만료되었습니다!"}), 400
+
+    # 유효시간(3분) 검증
+    saved_time = datetime.fromisoformat(saved_time_str)
+    if get_kst_now() - saved_time > timedelta(minutes=3):
+        # 3분 지났을 때 세션 초기화
+        session.pop('verify_code', None)
+        session.pop('verify_target', None)
+        session.pop('verify_purpose', None)
+        session.pop('verify_time', None)
+        return jsonify({"status": "error", "message": "유효시간(3분)이 지났습니다. 다시 요청해주세요."})
+
+    # 정답이다 연금술사
+    session['is_verified'] = True
+    session['verified_target'] = saved_target
+    session['verified_purpose'] = session.get('verify_purpose')
+
+    # 인증 성공 시 세션에서 코드 삭제 (재사용 방지)
+    session.pop('verify_code', None)
+    session.pop('verify_target', None)
+    session.pop('verify_purpose', None)
+    session.pop('verify_time', None)
+
+    return jsonify({"status": "success", "message": "본인 인증이 완료되었습니다!"})
+
+
 # 회원가입 로직
 @bp.route("/signup", methods=["GET", "POST"])
 def signup():
 
     if request.method == "POST":
+        form_data = request.form
         data = request.get_json() if request.is_json else request.form
         email = data.get("email")
         raw_phone = data.get("phone_number")
@@ -87,6 +212,35 @@ def signup():
         username = data.get("username")
         nickname = data.get("nickname")
         password = data.get("password")
+
+        # 도메인 방어
+        if not is_valid_domain(email):
+            flash("허용되지 않는 이메일 도메인입니다!")
+            return render_template("auth/signup.html", form_data=form_data)
+
+        # 본인 인증 확인 방어
+        if not session.get('is_verified') or session.get('verified_target') != email:
+            flash("이메일 인증을 완료해주세요!")
+            return render_template("auth/signup.html", form_data=form_data)
+
+        # 비밀번호 복잡도 방어 (서버단 최종 검증)
+        if not is_valid_password(password):
+            flash("비밀번호는 영문, 숫자, 특수문자를 포함하여 8~16자로 설정해야 합니다!")
+            return render_template("auth/signup.html", form_data=form_data)
+
+        # 비밀번호 확인 방어
+        if password != password_confirm:
+            flash("비밀번호가 서로 일치하지 않습니다!")
+            return render_template("auth/signup.html", form_data=form_data)
+
+        # 중복 방어
+        if User.query.filter_by(email=email).first():
+            flash("이미 존재하는 이메일입니다!")
+            return render_template("auth/signup.html", form_data=form_data)
+
+        if User.query.filter_by(nickname=nickname).first():
+            flash("이미 존재하는 닉네임입니다!")
+            return render_template("auth/signup.html", form_data=form_data)
 
         if User.query.filter_by(email=email).first():
             if request.is_json:
@@ -178,19 +332,6 @@ def logout():
                     "message": "로그아웃 되었습니다!"})
 
 
-
-# 차단할 도메인 리스트
-DISALLOWED_DOMAINS = ['test.com', 'example.com', 'sample.com', 'temp.com']
-
-# 도메인 제약 조건
-def if_valid_domain(email):
-    # 이메일 형식에서 도메인 부분만 추출
-    domain = email.split('@')[-1]
-    if domain in DISALLOWED_DOMAINS:
-        return False
-    return True
-
-
 # 이메일/휴대전화 인증번호 요청 로직 (26.05.08 휴대전화 인증 구현x)
 @bp.route("/request-verification", methods=["POST"])
 def request_verification():
@@ -241,43 +382,3 @@ def request_verification():
     print(f"발송된 인증번호: [{verification_code}]\n")
 
     return jsonify({"status": "success", "message": "인증번호가 발송되었습니다!"})
-
-
-# 인증번호 확인 로직 (임시)
-# 임시: 인증번호 확인 API
-@bp.route("/verify-code", methods=["POST"])
-def verify_code():
-    data = request.get_json()
-    input_code = data.get("code")
-    target_value = data.get("value") # 내 번호가 맞는지 확인
-
-    saved_code = session.get('verify_code')
-    saved_target = session.get('verify_target')
-    saved_time_str = session.get('verify_time')
-
-    # 세션에 코드가 없거나 코드가 틀렸거나 요청한 번호가 다르면 에러 발생
-    if not saved_code or input_code != saved_code or target_value != saved_target:
-        return jsonify({"status": "error", "message": "인증번호가 일치하지 않거나 만료되었습니다!"}), 400
-
-    # 유효시간(3분) 검증
-    saved_time = datetime.fromisoformat(saved_time_str)
-    if get_kst_now() - saved_time > timedelta(minutes=3):
-        # 3분 지났을 때 세션 초기화
-        session.pop('verify_code', None)
-        session.pop('verify_target', None)
-        session.pop('verify_purpose', None)
-        session.pop('verify_time', None)
-        return jsonify({"status": "error", "message": "유효시간(3분)이 지났습니다. 다시 요청해주세요."})
-
-    # 정답이다 연금술사
-    session['is_verified'] = True
-    session['verified_target'] = saved_target
-    session['verified_purpose'] = session.get('verify_purpose')
-
-    # 인증 성공 시 세션에서 코드 삭제 (재사용 방지)
-    session.pop('verify_code', None)
-    session.pop('verify_target', None)
-    session.pop('verify_purpose', None)
-    session.pop('verify_time', None)
-
-    return jsonify({"status": "success", "message": "본인 인증이 완료되었습니다!"})
