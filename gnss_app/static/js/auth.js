@@ -4,6 +4,52 @@
 // 상태 관리를 위한 전역 변수 (플래그)
 let isEmailVerified = false;
 let isNicknameChecked = false;
+let isPhoneChecked = false;
+
+// 소셜 폼 전역 플래그
+let isSocialNicknameChecked = false;
+let isSocialPhoneChecked = false;
+
+
+// 폼 전환 로직
+function toggleForm(type) {
+    const selectArea = document.getElementById('select-area');
+    const emailForm = document.getElementById('signup-form');
+    const socialForm = document.getElementById('social-signup-form');
+
+    if (!selectArea || !emailForm || !socialForm) return;
+
+    if (type === 'email') {
+        selectArea.style.display = 'none';
+        emailForm.style.display = 'block';
+        socialForm.style.display = 'none';
+    } else if (type === 'social') {
+        selectArea.style.display = 'none';
+        emailForm.style.display = 'none';
+        socialForm.style.display = 'block';
+    } else {
+        selectArea.style.display = 'block';
+        emailForm.style.display = 'none';
+        socialForm.style.display = 'none';
+    }
+}
+
+// 백엔드 에러 발생 시 자동으로 이메일 폼 열기
+document.addEventListener('DOMContentLoaded', () => {
+    const wrapper = document.querySelector('.auth-wrapper');
+    if (wrapper) {
+        if (wrapper.getAttribute('data-show-social') === 'true') {
+            toggleForm('social');
+            const socialPhone = document.getElementById('social-phone');
+            // 전화번호가 이미 채워져서 읽기 전용이라면 통과 플래그를 true로 변경
+            if (socialPhone && socialPhone.readOnly) {
+                isSocialPhoneChecked = true;
+            }
+        } else if (wrapper.getAttribute('data-has-error') === 'true') {
+            toggleForm('email');
+        }
+    }
+});
 
 
 // 입력 지연(Debounce) 함수: 사용자가 타이핑을 멈추고 0.5초 뒤에만 검증 실행 (서버 과부하 방지)
@@ -306,4 +352,98 @@ if (signupForm) {
             return;
         }
     });
+}
+
+
+// 소셜 가입 추가 폼 검증 로직
+
+const socialNicknameInput = document.getElementById('social-nickname');
+const socialNicknameFeedback = document.getElementById('social-nickname-feedback');
+
+async function checkSocialNickname() {
+    if (!socialNicknameInput || !socialNicknameInput.value) {
+        showToast("닉네임을 입력해주세요!");
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/check-nickname', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nickname: socialNicknameInput.value })
+        });
+        const data = await response.json();
+
+        if (socialNicknameFeedback) {
+            socialNicknameFeedback.innerText = data.message;
+            socialNicknameFeedback.style.color = (data.status === 'available') ? "#4d94ff" : "#ff4d4d";
+        }
+
+        if (data.status === 'available') {
+            isSocialNicknameChecked = true;
+        }
+    } catch (error) {
+        showToast("닉네임 확인 중 서버 오류가 발생했습니다.");
+    }
+}
+
+if (socialNicknameInput) {
+    socialNicknameInput.addEventListener('input', () => {
+        isSocialNicknameChecked = false;
+        if (socialNicknameFeedback) socialNicknameFeedback.innerText = "";
+    });
+}
+
+const socialPhoneInput = document.getElementById('social-phone');
+const socialPhoneFeedback = document.getElementById('social-phone-feedback');
+
+const validateSocialPhone = debounce(async (phone) => {
+    try {
+        const response = await fetch('/auth/check-phone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone })
+        });
+        const data = await response.json();
+
+        socialPhoneFeedback.innerText = data.message;
+        if (data.status === 'exists' || data.status === 'error') {
+            socialPhoneFeedback.style.color = "#ff4d4d";
+            isSocialPhoneChecked = false;
+        } else {
+            socialPhoneFeedback.style.color = "#4d94ff";
+            isSocialPhoneChecked = true;
+        }
+    } catch (e) {
+        console.error("전화번호 체크 오류", e);
+    }
+}, 500);
+
+if (socialPhoneInput) {
+    socialPhoneInput.addEventListener('input', () => {
+        isSocialPhoneChecked = false;
+        const phone = socialPhoneInput.value;
+
+        if (phone.length < 12) {
+            socialPhoneFeedback.innerText = "";
+            return;
+        }
+        validateSocialPhone(phone);
+    });
+}
+
+function submitSocialForm() {
+    if (!isSocialNicknameChecked) {
+        showToast("닉네임 중복 확인을 진행해주세요!");
+        socialNicknameInput.focus();
+        return;
+    }
+    if (!isSocialPhoneChecked) {
+        showToast("이미 가입된 번호이거나 올바르지 않은 연락처입니다!");
+        socialPhoneInput.focus();
+        return;
+    }
+
+    // 검증 완료 시 실제 폼 제출
+    document.getElementById('social-signup-form').submit();
 }

@@ -7,11 +7,33 @@
 {% endblock %}
 
 {% block content %}
-    <div class="auth-wrapper">
+    <div class="auth-wrapper"
+         data-has-error="{{ 'true' if form_data else 'false' }}"
+         data-show-social="{{ 'true' if show_social_form else 'false' }}">
+
         <div class="etl-card auth-card">
             <h2 class="auth-header">회원가입</h2>
-            <form action="{{ url_for('auth.signup') }}" method="POST" id="signup-form">
 
+            <div id="select-area">
+                <p class="text-center text-muted mb-4">가입 방식을 선택해주세요</p>
+                <button type="button" class="btn-social btn-email-start w-100 mb-3" onclick="toggleForm('email')">
+                    <i class="fa-regular fa-envelope me-2"></i> 이메일로 가입하기
+                </button>
+                <div class="divider">또는 SNS 계정으로 가입</div>
+                <div class="social-login-area mt-0">
+                    <button type="button" class="btn-social btn-social-kakao" onclick="location.href='{{ url_for('auth.login_kakao') }}'">
+                        <i class="fa-solid fa-comment me-2"></i> 카카오 가입
+                    </button>
+                    <button type="button" class="btn-social btn-social-naver" onclick="location.href='{{ url_for('auth.login_naver') }}'">
+                        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" class="me-2">
+                            <path d="M10.741 16L5.05 8.351V16H0V0h5.258l5.692 7.649V0h5.05v16h-5.259z" fill="#ffffff"/>
+                        </svg>
+                        네이버 가입
+                    </button>
+                </div>
+            </div>
+
+            <form action="{{ url_for('auth.signup') }}" method="POST" id="signup-form" style="display: none;">
                 <div class="mb-3">
                     <label class="auth-label">이메일 주소</label>
                     <div class="input-group">
@@ -67,7 +89,36 @@
                     <div id="phone-feedback" class="feedback-msg"></div>
                 </div>
 
-                <button type="submit" class="auth-submit-btn">가입하기</button>
+                <button type="submit" class="auth-submit-btn mb-3">가입하기</button>
+                <button type="button" class="btn btn-outline-secondary w-100" onclick="toggleForm('back')">뒤로 가기</button>
+            </form>
+
+            <form action="{{ url_for('auth.social_signup') }}" method="POST" id="social-signup-form" style="display: none;">
+                <p class="text-center text-muted mb-4">서비스 이용을 위해 추가 정보를 입력해주세요.</p>
+
+                <div class="mb-3">
+                    <label class="auth-label">닉네임</label>
+                    <div class="input-group">
+                        <input type="text" name="social_nickname" id="social-nickname" class="form-control auth-input-group" required>
+                        <button type="button" class="btn-auth-action" onclick="checkSocialNickname()">중복 체크</button>
+                    </div>
+                    <div id="social-nickname-feedback" class="feedback-msg"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="auth-label">연락처</label>
+                    <input type="text" name="social_phone" id="social-phone" class="auth-input mb-0"
+                        placeholder="010-0000-0000" oninput="autoHyphen(this)" maxlength="13"
+
+                        value="{{ social_data.phone if social_data and social_data.phone and social_data.phone != 'None' else '' }}"
+
+                        {{ 'readonly' if social_data and social_data.phone and social_data.phone != 'None' else '' }} required>
+
+                    <div id="social-phone-feedback" class="feedback-msg"></div>
+                </div>
+
+                <button type="button" class="auth-submit-btn mb-3" onclick="submitSocialForm()">가입 완료</button>
+                <button type="button" class="btn btn-outline-secondary w-100" onclick="toggleForm('back')">취소하고 돌아가기</button>
             </form>
 
             <div class="auth-links">

@@ -11,17 +11,32 @@
         <div class="etl-card auth-card">
             <h2 class="auth-header">로그인</h2>
             <form action="{{ url_for('auth.login') }}" method="POST">
-                <div>
+                <div class="mb-3">
                     <label class="auth-label">이메일</label>
-                    <input type="email" name="email" class="auth-input" placeholder="example@email.com" required>
+                    <input type="email" name="email" class="auth-input mb-0" placeholder="example@email.com" required>
                 </div>
-                <div>
+                <div class="mb-4 mt-3">
                     <label class="auth-label">비밀번호</label>
-                    <input type="password" name="password" class="auth-input" required>
+                    <input type="password" name="password" class="auth-input mb-0" required>
                 </div>
-                <button type="submit" class="auth-submit-btn">로그인</button>
+                <button type="submit" class="auth-submit-btn">이메일로 로그인</button>
             </form>
-            <div class="auth-links">
+
+            <div class="divider">또는 SNS 계정으로 로그인</div>
+
+            <div class="social-login-area mt-0 mb-0">
+                <button type="button" class="btn-social btn-social-kakao" onclick="location.href='{{ url_for('auth.login_kakao') }}'">
+                    <i class="fa-solid fa-comment me-2"></i> 카카오 로그인
+                </button>
+                <button type="button" class="btn-social btn-social-naver" onclick="location.href='{{ url_for('auth.login_naver') }}'">
+                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" class="me-2">
+                        <path d="M10.741 16L5.05 8.351V16H0V0h5.258l5.692 7.649V0h5.05v16h-5.259z" fill="#ffffff"/>
+                    </svg>
+                    네이버 로그인
+                </button>
+            </div>
+
+            <div class="auth-links mt-4">
                 <span>아직 계정이 없으신가요?</span>
                 <a href="{{ url_for('auth.signup') }}">회원가입</a>
             </div>

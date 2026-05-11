@@ -39,6 +39,9 @@ class User(db.Model):
     # 로그인 경로 파악용
     provider = db.Column(db.String(20), default='local')
 
+    suspended_until = db.Column(db.DateTime, nullable=True) # 정지 종료일
+    is_banned = db.Column(db.Boolean, default=False)      # 영구 정지 여부
+
     # 비밀번호 설정 (암호화)
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -46,6 +49,13 @@ class User(db.Model):
     # 비밀번호 확인
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    # 현재 유저가 정지 상태인지 확인하는 헬퍼 함수
+    def is_suspended(self):
+
+        if self.status == 'suspended' and self.suspended_until:
+            return self.suspended_until > get_kst_now()
+        return False
 
     # 관리자 권한을 위한 역할 추가 (기본값 user, 관리자는 admin으로 지정)
     role = db.Column(db.String(20), default='user', nullable=False)

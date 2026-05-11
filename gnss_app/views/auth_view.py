@@ -3,6 +3,11 @@
 import functools
 import random
 import re
+import os
+import requests
+import string
+
+from dotenv import load_dotenv
 from textwrap import wrap
 from flask import Blueprint, request, jsonify, session, g, abort, render_template, redirect, url_for, flash
 from gnss_app.models.user import db, User
@@ -10,6 +15,7 @@ from datetime import datetime, timezone, timedelta
 from flask_mail import Message
 from gnss_app import mail
 
+load_dotenv()
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -354,6 +360,23 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+
+            # 정지 계정 확인 여부
+            if user.status == 'banned' or user.is_banned:
+                flash("영구 정지된 계정입니다. 관리자에게 문의하세요.")
+                return redirect(url_for("auth.login"))
+
+            if user.is_suspended():
+                unlock_time = user.suspended_until.strftime('%Y-%m-%d %H:%M')
+                flash(f"정지된 계정입니다. {unlock_time} 이후에 이용 가능합니다.")
+                return redirect(url_for("auth.login"))
+
+            # 정지 기간이 끝났는데 아직 status가 suspended라면 자동으로 해제 (KST 기준)
+            if user.status == 'suspended' and not user.is_suspended():
+                user.status = 'active'
+                user.suspended_until = None
+                db.session.commit()
+
             # 로그인 성공 시 세션에 유저 ID 저장
             session.clear()
 
@@ -392,3 +415,241 @@ def logout():
 
     return jsonify({"status": "success",
                     "message": "로그아웃 되었습니다!"})
+
+
+######### [소셜 로그인] 네이버 로그인 연동 #########
+
+@bp.route("/login/naver")
+def login_naver():
+    # 네이버 로그인 창으로 사용자 리다이렉트
+    client_id = os.getenv("MY_NAVER_ID")
+    redirect_uri = "http://127.0.0.1:5000/auth/naver/callback"
+    state = "random_state_string_for_security"
+
+    if not client_id:
+        flash("네이버 로그인 키가 설정되지 않았습니다. 관리자에게 문의하세요.")
+        return redirect(url_for("auth.login"))
+
+    url = f"https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&state={state}"
+    return redirect(url)
+
+@bp.route("/naver/callback")
+def callback_naver():
+    code = request.args.get("code")
+    state = request.args.get("state")
+    client_id = os.getenv("MY_NAVER_ID")
+    client_secret = os.getenv("MY_NAVER_PASSWORD")
+
+    redirect_uri = "http://127.0.0.1:5000/auth/naver/callback"
+
+    # 인증 코드로 액세스 토큰 발급 요청
+    token_url = f"https://nid.naver.com/oauth2.0/token?grant_type=authorization_code&client_id={client_id}&client_secret={client_secret}&code={code}&state={state}&redirect_uri={redirect_uri}"
+    token_res = requests.get(token_url).json()
+    access_token = token_res.get("access_token")
+
+    if not access_token:
+        flash("네이버 로그인에 실패했습니다.")
+        return redirect(url_for("auth.login"))
+
+    # 액세스 토큰으로 사용자 정보 요청
+    headers = {"Authorization": f"Bearer {access_token}"}
+    info_res = requests.get("https://openapi.naver.com/v1/nid/me", headers=headers).json()
+    user_info = info_res.get("response", {})
+
+    email = user_info.get("email")
+    name = user_info.get("name")
+    phone = user_info.get("mobile") # 010-0000-0000 형태
+
+    # 기존 가입자인지 확인 (이메일 기준)
+    user = User.query.filter_by(email=email).first()
+    if user:
+        if user.status == 'banned' or user.is_banned:
+            return f"<script>alert('영구 정지된 계정입니다.'); window.location.href='{url_for('auth.login')}';</script>"
+
+        if user.is_suspended():
+            unlock_time = user.suspended_until.strftime('%Y-%m-%d %H:%M')
+            return f"<script>alert('정지된 계정입니다.\\n해제 일시: {unlock_time}'); window.location.href='{url_for('auth.login')}';</script>"
+
+        # 정지 기간 종료 시 자동 해제
+        if user.status == 'suspended' and not user.is_suspended():
+            user.status = 'active'
+            user.suspended_until = None
+            db.session.commit()
+
+        # 기존 가입자면 바로 로그인 처리
+        session.clear()
+        session.permanent = True
+        session["user_id"] = user.id
+
+        # 가입 출처(provider)가 'local'일 때만 계정 통합 안내 팝업
+        if user.provider == 'local':
+            user.provider = 'naver' # 다음번 로그인부터는 팝업이 안 뜨도록 출처 업데이트
+            db.session.commit()
+            return f"""
+            <script>
+                alert("기존 이메일로 가입한 정보가 확인되었습니다.\\n네이버 간편 로그인과 안전하게 통합합니다.\\n환영합니다, {user.nickname}님!");
+                window.location.href = '{url_for("main.index")}';
+            </script>
+            """
+        else:
+            # 이미 소셜로 연동된 평범한 유저라면 조용히 메인으로 전달
+            flash(f"{user.nickname}님, 어서오세요!")
+            return redirect(url_for("main.index"))
+
+    # 신규 가입자면 세션에 정보 임시 저장 후 추가 정보 폼으로 유도
+    session["social_data"] = {
+        "email": email,
+        "name": name,
+        "phone": format_phone_number(phone),
+        "provider": "naver"
+    }
+
+    return render_template("auth/signup.html", form_data={}, show_social_form=True, social_data=session["social_data"])
+
+
+######### [소셜 로그인] 카카오 로그인 연동 #########
+
+@bp.route("/login/kakao")
+def login_kakao():
+    client_id = os.getenv("MY_KAKAO_KEY")
+    redirect_uri = "http://127.0.0.1:5000/auth/kakao/callback"
+
+    if not client_id:
+        flash("카카오 로그인 키가 설정되지 않았습니다. 관리자에게 문의하세요.")
+        return redirect(url_for("auth.login"))
+
+    url = f"https://kauth.kakao.com/oauth/authorize?response_type=code&client_id={client_id}&redirect_uri={redirect_uri}"
+    return redirect(url)
+
+@bp.route("/kakao/callback")
+def callback_kakao():
+    code = request.args.get("code")
+    client_id = os.getenv("MY_KAKAO_KEY")
+    client_secret = os.getenv("MY_KAKAO_SECRET")
+
+    redirect_uri = "http://127.0.0.1:5000/auth/kakao/callback"
+
+    # 인증 코드로 액세스 토큰 발급 요청
+    token_url = "https://kauth.kakao.com/oauth/token"
+    data = {
+        "grant_type": "authorization_code",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "code": code
+    }
+    token_res = requests.post(token_url, data=data).json()
+    access_token = token_res.get("access_token")
+
+    if not access_token:
+        flash("카카오 로그인에 실패했습니다.")
+        return redirect(url_for("auth.login"))
+
+    # 액세스 토큰으로 사용자 정보 요청
+    headers = {"Authorization": f"Bearer {access_token}"}
+    info_res = requests.get("https://kapi.kakao.com/v2/user/me", headers=headers).json()
+
+    kakao_id = info_res.get("id")
+    kakao_account = info_res.get("kakao_account", {})
+
+    email = kakao_account.get("email")
+
+    # 카카오 가입 시 이메일이 없을 경우가 있기 때문에 가짜 이메일 생성
+    if not email:
+        email = f"kakao_{kakao_id}@everytriplog.local"
+
+    # 카카오 프로필에서 이름/닉네임 가져오기 (권한 설정에 따라 다를 수 있음)
+    profile = kakao_account.get("profile", {})
+    name = kakao_account.get("name") or profile.get("nickname")
+
+    phone = kakao_account.get("phone_number") # +82 10-0000-0000 형태로 넘어옴
+
+    if phone and phone.startswith("+82 "):
+        phone = "0" + phone[4:] # 010-0000-0000 형태로 변환
+
+    # 기존 가입자인지 확인
+    user = User.query.filter_by(email=email).first()
+    if user:
+
+        if user.status == 'banned' or user.is_banned:
+            return f"<script>alert('영구 정지된 계정입니다.'); window.location.href='{url_for('auth.login')}';</script>"
+
+        if user.is_suspended():
+            unlock_time = user.suspended_until.strftime('%Y-%m-%d %H:%M')
+            return f"<script>alert('정지된 계정입니다.\\n해제 일시: {unlock_time}'); window.location.href='{url_for('auth.login')}';</script>"
+
+        # 정지 기간 종료 시 자동 해제
+        if user.status == 'suspended' and not user.is_suspended():
+            user.status = 'active'
+            user.suspended_until = None
+            db.session.commit()
+
+        session.clear()
+        session.permanent = True
+        session["user_id"] = user.id
+
+        # 가입 출처(provider)가 'local'일 때만 계정 통합 안내 팝업
+        if user.provider == 'local':
+            user.provider = 'kakao' # 다음번 로그인부터는 팝업이 안 뜨도록 출처 업데이트
+            db.session.commit()
+            return f"""
+            <script>
+                alert("기존 이메일로 가입한 정보가 확인되었습니다.\\n네이버 간편 로그인과 안전하게 통합합니다.\\n환영합니다, {user.nickname}님!");
+                window.location.href = '{url_for("main.index")}';
+            </script>
+            """
+        else:
+            # 이미 소셜로 연동된 평범한 유저라면 조용히 메인으로 전달
+            flash(f"{user.nickname}님, 어서오세요!")
+            return redirect(url_for("main.index"))
+
+    session["social_data"] = {
+        "email": email,
+        "name": name if name else "카카오유저",
+        "phone": format_phone_number(phone),
+        "provider": "kakao"
+    }
+
+    return render_template("auth/signup.html", form_data={}, show_social_form=True, social_data=session["social_data"])
+
+
+######### [소셜 로그인] 추가 정보 입력 후 최종 가입 #########
+
+@bp.route("/social-signup", methods=["POST"])
+def social_signup():
+    social_data = session.get("social_data")
+    if not social_data:
+        flash("소셜 가입 정보가 만료되었습니다. 다시 로그인해주세요.")
+        return redirect(url_for("auth.login"))
+
+    nickname = request.form.get("social_nickname", "").strip()
+    raw_phone = request.form.get("social_phone", "")
+    phone_number = format_phone_number(raw_phone)
+
+    # 서버 단 중복 이중 검사
+    if User.query.filter_by(nickname=nickname).first():
+        flash("이미 존재하는 닉네임입니다.")
+        return render_template("auth/signup.html", form_data={}, show_social_form=True, social_data=social_data)
+
+    if User.query.filter_by(phone_number=phone_number).first():
+        flash("이미 존재하는 전화번호입니다.")
+        return render_template("auth/signup.html", form_data={}, show_social_form=True, social_data=social_data)
+
+    # 임의의 강력한 비밀번호 생성 (소셜 로그인 유저는 비밀번호 입력 로그인을 사용하지 않음)
+    random_password = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
+
+    new_user = User(
+        username=social_data["name"],
+        nickname=nickname,
+        email=social_data["email"],
+        phone_number=phone_number,
+        provider=social_data["provider"]
+    )
+    new_user.set_password(random_password)
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    session.pop("social_data", None)
+    flash(f"{nickname}님, 회원가입이 완료되었습니다! 다시 로그인해주세요.")
+    return redirect(url_for("auth.login"))

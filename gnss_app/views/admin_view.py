@@ -14,6 +14,11 @@ from datetime import datetime, timezone, timedelta
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
+# KST 반환 함수
+def get_kst_now():
+    kst = timezone(timedelta(hours=9))
+    return datetime.now(kst)
+
 @bp.route("/")
 @login_required
 @admin_required
@@ -31,10 +36,18 @@ def dashboard():
     user_count = len(users)
     group_count = len(groups)
 
+    # 가입 경로별 통계 (통계 위젯용)
+    kakao_count = User.query.filter_by(provider='kakao').count()
+    naver_count = User.query.filter_by(provider='naver').count()
+    local_count = User.query.filter_by(provider='local').count()
+
     return render_template(
         "admin/admin.html",
         user_count=user_count,
         group_count=group_count,
+        kakao_count=kakao_count,
+        naver_count=naver_count,
+        local_count=local_count,
         groups=groups,
         trajectories=trajectories,
         visit_logs=visit_logs,
@@ -96,9 +109,43 @@ def inquiry_answer(inquiry_id):
         answer_content = request.form.get("answer")
         inquiry.answer = answer_content
         inquiry.is_answered = True
-        inquiry.answered_at = datetime.utcnow()
+        inquiry.answered_at = get_kst_now()
         db.session.commit()
         flash("답변이 성공적으로 등록되었습니다.")
         return redirect(url_for('admin.inquiry_list'))
 
     return render_template("admin/inquiry_answer.html", inquiry=inquiry)
+
+
+# 유저 제재 참교육 라우터 (정지, 영구정지, 해제)
+@bp.route('/user/<int:user_id>/suspend', methods=['POST'])
+@login_required
+@admin_required
+def suspend_user(user_id):
+    user = User.query.get_or_404(user_id)
+    action = request.form.get('action') # 정지, 영구정지, 해제
+
+    # 경고 주겠심 기간제 정지
+    if action == 'suspend':
+        days = int(request.form.get('days', 1))
+        user.status = 'suspended'
+        user.suspended_until = get_kst_now() + timedelta(days=days)
+        user.is_banned = False
+        flash(f"{user.nickname}님을 {days}일 동안 정지 처리했습니다.")
+
+    # 참교육 영구 정지
+    elif action == 'ban':
+        user.status = 'banned'
+        user.is_banned = True
+        user.suspended_until = None
+        flash(f"{user.nickname}님을 영구 정지 처리했습니다.")
+
+    # 자비를 베푼 제재 해제
+    elif action == 'unsuspend':
+        user.status = 'active'
+        user.suspended_until = None
+        user.is_banned = False
+        flash(f"{user.nickname}님의 모든 제재를 해제했습니다.")
+
+    db.session.commit()
+    return redirect(url_for('admin.user_list'))
