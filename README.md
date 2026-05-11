@@ -175,6 +175,7 @@
 - 비정상 도메인 입력 시 에러 안내 발생
 
 - 실제 이메일로 인증번호 발송 및 인증 로직 구현
+<img width="480" height="281" alt="image" src="https://github.com/user-attachments/assets/7216e013-54a0-4b34-a43b-1f4c417bd96d" />
 
 
 
