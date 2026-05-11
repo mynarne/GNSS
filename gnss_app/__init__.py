@@ -31,8 +31,9 @@ def create_app():
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = os.getenv('MY_GOOGLE_ACCOUNT')
-    app.config['MAIL_PASSWORD'] = os.getenv('MY_GOOGLE_PASSOWRD') # 구글 앱 비밀번호
-    app.config['MAIL_DEFAULT_SENDER'] = 'EveryTripLog' + os.getenv('MY_GOOGLE_ACCOUNT')
+    app.config['MAIL_PASSWORD'] = os.getenv('MY_GOOGLE_PASSWORD') # 구글 앱 비밀번호
+
+    app.config['MAIL_DEFAULT_SENDER'] = f"EveryTripLog <{os.getenv('MY_GOOGLE_ACCOUNT')}>"
 
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-key-for-dev')
 
