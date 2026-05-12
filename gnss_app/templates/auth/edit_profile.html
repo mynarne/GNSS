@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}회원 정보 수정 - EveryTripLog{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mypage.css') }}">
+{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-6 mb-4">
+            <div class="etl-card p-4">
+                <h4 class="mypage-title">
+                    <i class="fa-solid fa-user-pen mypage-icon"></i>회원 정보 수정
+                </h4>
+                <form action="{{ url_for('mypage.edit_profile') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">사용자 이름</label>
+                        <input type="text" name="username" class="form-control bg-light" value="{{ g.user.username }}" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">닉네임</label>
+                        <input type="text" name="nickname" class="form-control" value="{{ g.user.nickname }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">이메일</label>
+                        <div class="input-group">
+                            <input type="email" name="email" class="form-control" value="{{ g.user.email }}" required>
+                            <button class="btn btn-outline-secondary" type="button">인증번호 발송</button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted">연락처</label>
+                        <div class="input-group">
+                            <input type="text" name="phone_number" class="form-control" value="{{ g.user.phone_number or '' }}"
+                                placeholder="010-0000-0000" oninput="autoHyphen(this)" maxlength="13">
+                            <button class="btn btn-outline-secondary" type="button">인증번호 발송</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mypage-submit-btn">
+                        수정 완료
+                    </button>
+                    <a href="{{ url_for('mypage.index') }}" class="btn btn-secondary w-100 mt-2">취소</a>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -22,6 +22,10 @@
                 <button type="submit" class="auth-submit-btn">이메일로 로그인</button>
             </form>
 
+            <div class="text-center mt-3 mb-2">
+                <a href="{{ url_for('auth.find_account') }}" class="text-decoration-none text-muted small"><i class="fa-solid fa-magnifying-glass me-1"></i>아이디 / 비밀번호 찾기</a>
+            </div>
+
             <div class="divider">또는 SNS 계정으로 로그인</div>
 
             <div class="social-login-area mt-0 mb-0">

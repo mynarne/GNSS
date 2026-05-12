@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}계정찾기 - EveryTripLog{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="etl-card auth-card find-account-form" style="max-width: 100%;">
+                <h2 class="auth-header mb-4">계정 찾기</h2>
+
+                <ul class="nav nav-tabs mb-4" id="findAccountTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="find-id-tab" data-bs-toggle="tab" data-bs-target="#find-id" type="button" role="tab">아이디(이메일) 찾기</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="reset-pw-tab" data-bs-toggle="tab" data-bs-target="#reset-pw" type="button" role="tab">비밀번호 찾기</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="findAccountTabContent">
+
+                    <div class="tab-pane fade show active" id="find-id" role="tabpanel">
+                        <form action="{{ url_for('auth.find_id') }}" method="POST">
+                            <div class="mb-3">
+                                <label for="id_username" class="auth-label">이름</label>
+                                <input type="text" class="auth-input mb-0" id="id_username" name="username" placeholder="가입하신 이름을 입력하세요" required>
+                            </div>
+                            <div class="mb-4 mt-3">
+                                <label for="id_phone" class="auth-label">전화번호</label>
+                                <input type="text" class="auth-input mb-0" id="id_phone" name="phone_number" placeholder="010-0000-0000" oninput="autoHyphen(this)" maxlength="13" required>
+                            </div>
+                            <button type="submit" class="auth-submit-btn">아이디 찾기</button>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="reset-pw" role="tabpanel">
+                        <form action="{{ url_for('auth.reset_password') }}" method="POST">
+                            <div class="mb-3">
+                                <label for="pw_username" class="auth-label">이름</label>
+                                <input type="text" class="auth-input mb-0" id="pw_username" name="username" placeholder="가입하신 이름을 입력하세요" required>
+                            </div>
+                            <div class="mb-4 mt-3">
+                                <label for="pw_email" class="auth-label">아이디 (이메일)</label>
+                                <input type="email" class="auth-input mb-0" id="pw_email" name="email" placeholder="가입하신 이메일을 입력하세요" required>
+                            </div>
+                            <button type="submit" class="auth-submit-btn">임시 비밀번호 발급</button>
+                            <small class="form-text text-muted d-block mt-3 text-center">가입하신 이메일로 임시 비밀번호가 발송됩니다.</small>
+                        </form>
+                    </div>
+
+                </div>
+
+                <div class="auth-links mt-4">
+                    <a href="{{ url_for('auth.login') }}">로그인 화면으로 돌아가기</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

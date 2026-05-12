@@ -24,6 +24,13 @@ def get_kst_now():
     kst = timezone(timedelta(hours=9))
     return datetime.now(kst)
 
+# 시간 객체 포맷팅
+def format_kst_time(dt_obj):
+    if not dt_obj:
+        return ''
+
+    return dt_obj.strftime('%Y.%m.%D %H:%M')
+
 # 앱에 요청이 들어올 때마다 가장 먼저 실행
 @bp.before_app_request
 def load_logged_in_user():
@@ -34,9 +41,6 @@ def load_logged_in_user():
     else:
         # 세션에 아이디가 있으면 DB에서 유저 정보를 찾아서 g.user에 넣어줌
         g.user = User.query.get(user_id)
-
-
-######### 검증 및 포맷팅 헬퍼 함수 #########
 
 
 # 차단할 도메인 리스트
@@ -108,13 +112,6 @@ def login_required(view):
 
         return view(*args, **kwargs)
     return wrapped_view
-
-
-#########################################
-
-
-
-######### [API] 비동기(AJAX) 검증 및 통신 라우터 #########
 
 
 # 이메일 중복 체크
@@ -274,13 +271,6 @@ def verify_code():
     return jsonify({"status": "success", "message": "본인 인증이 완료되었습니다!"})
 
 
-##############################################
-
-
-
-######### [WEB] 폼 전송(Submit) 라우터 #########
-
-
 # 회원가입 로직
 @bp.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -367,7 +357,7 @@ def login():
                 return redirect(url_for("auth.login"))
 
             if user.is_suspended():
-                unlock_time = user.suspended_until.strftime('%Y-%m-%d %H:%M')
+                unlock_time = format_kst_time(user.suspended_until)
                 flash(f"정지된 계정입니다. {unlock_time} 이후에 이용 가능합니다.")
                 return redirect(url_for("auth.login"))
 
@@ -467,7 +457,7 @@ def callback_naver():
             return f"<script>alert('영구 정지된 계정입니다.'); window.location.href='{url_for('auth.login')}';</script>"
 
         if user.is_suspended():
-            unlock_time = user.suspended_until.strftime('%Y-%m-%d %H:%M')
+            unlock_time = format_kst_time(user.suspended_until)
             return f"<script>alert('정지된 계정입니다.\\n해제 일시: {unlock_time}'); window.location.href='{url_for('auth.login')}';</script>"
 
         # 정지 기간 종료 시 자동 해제
@@ -575,7 +565,7 @@ def callback_kakao():
             return f"<script>alert('영구 정지된 계정입니다.'); window.location.href='{url_for('auth.login')}';</script>"
 
         if user.is_suspended():
-            unlock_time = user.suspended_until.strftime('%Y-%m-%d %H:%M')
+            unlock_time = format_kst_time(user.suspended_until)
             return f"<script>alert('정지된 계정입니다.\\n해제 일시: {unlock_time}'); window.location.href='{url_for('auth.login')}';</script>"
 
         # 정지 기간 종료 시 자동 해제
@@ -653,3 +643,63 @@ def social_signup():
     session.pop("social_data", None)
     flash(f"{nickname}님, 회원가입이 완료되었습니다! 다시 로그인해주세요.")
     return redirect(url_for("auth.login"))
+
+
+# 계정 찾기 뷰 페이지 렌더링
+@bp.route("/find-account", methods=["GET"])
+def find_account():
+    # 아이디 찾기와 비밀번호 찾기 탭이 있는 HTML 렌더링
+    return render_template("auth/find_account.html")
+
+
+# 아이디(이메일) 찾기 로직
+@bp.route("/find-id", methods=["POST"])
+def find_id():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        raw_phone = request.form.get("phone_number", "")
+        phone_number = format_phone_number(raw_phone)
+
+        user = User.query.filter_by(username=username, phone_number=phone_number).first()
+        if user:
+            # 이메일 마스킹 처리 logic
+            email_parts = user.email.split('@')
+            masked_id = email_parts[0][:3] + '*' * (len(email_parts[0]) - 3) if len(email_parts[0]) > 3 else email_parts[0][:1] + '*' * (len(email_parts[0]) - 1)
+            flash(f"회원님의 이메일은 [{masked_id}@{email_parts[1]}] 입니다.")
+        else:
+            flash("일치하는 정보가 없습니다.")
+
+    # GET일 때는 아이디 찾기 전용 화면 (또는 통합 페이지의 ID 탭)
+    return render_template("auth/find_id.html")
+
+
+# 비밀번호 재설정 (임시 비밀번호 발급)
+@bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+
+        user = User.query.filter_by(username=username, email=email).first()
+        if user:
+            if user.provider != 'local':
+                flash(f"해당 계정은 {user.provider.upper()} 로그인을 이용해주세요.")
+                return redirect(url_for("auth.reset_password"))
+
+            # 임시 비밀번호 생성 및 발송 로직
+            temp_pw = ''.join(random.choices(string.ascii_letters + string.digits + "!@#$%", k=10))
+            user.set_password(temp_pw)
+            db.session.commit()
+
+            try:
+                msg = Message("[EveryTripLog] 임시 비밀번호 발급", recipients=[user.email])
+                msg.body = f"임시 비밀번호: [{temp_pw}]\n로그인 후 즉시 변경해주세요."
+                mail.send(msg)
+                flash("이메일로 임시 비밀번호가 발송되었습니다.")
+                return redirect(url_for("auth.login"))
+            except Exception as e:
+                flash("메일 발송 중 오류가 발생했습니다.")
+        else:
+            flash("일치하는 정보가 없습니다.")
+
+    return render_template("auth/reset_password.html")

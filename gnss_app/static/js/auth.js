@@ -447,3 +447,50 @@ function submitSocialForm() {
     // 검증 완료 시 실제 폼 제출
     document.getElementById('social-signup-form').submit();
 }
+
+
+// 마이페이지 비밀번호 변경 실시간 검증 로직
+const newPw = document.getElementById('new_password');
+const newPwConfirm = document.getElementById('new_password_confirm');
+const formatError = document.getElementById('pw-format-error');
+const matchError = document.getElementById('pw-match-error');
+const matchSuccess = document.getElementById('pw-match-success');
+const submitBtn = document.getElementById('submitBtn');
+
+if (newPw && newPwConfirm) {
+    const pwChangeRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,16}$/;
+
+    function validatePasswordChange() {
+        let isValid = true;
+
+        // 형식 검사
+        if (newPw.value.length > 0 && !pwChangeRegex.test(newPw.value)) {
+            if (formatError) formatError.style.display = 'block';
+            isValid = false;
+        } else {
+            if (formatError) formatError.style.display = 'none';
+        }
+
+        // 일치 검사
+        if (newPwConfirm.value.length > 0) {
+            if (newPw.value !== newPwConfirm.value) {
+                if (matchError) matchError.style.display = 'block';
+                if (matchSuccess) matchSuccess.style.display = 'none';
+                isValid = false;
+            } else {
+                if (matchError) matchError.style.display = 'none';
+                if (matchSuccess) matchSuccess.style.display = 'block';
+            }
+        } else {
+            if (matchError) matchError.style.display = 'none';
+            if (matchSuccess) matchSuccess.style.display = 'none';
+            isValid = false;
+        }
+
+        // 형식이 맞고, 서로 일치할 때만 버튼 활성화
+        if (submitBtn) submitBtn.disabled = !isValid;
+    }
+
+    newPw.addEventListener('input', validatePasswordChange);
+    newPwConfirm.addEventListener('input', validatePasswordChange);
+}

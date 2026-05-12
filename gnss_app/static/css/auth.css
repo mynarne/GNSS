@@ -1,6 +1,5 @@
 /* 로그인 및 회원가입 폼 전용 스타일 */
 
-
 .auth-wrapper {
     display: flex;
     justify-content: center;
@@ -60,12 +59,12 @@
 }
 
 .input-group .auth-input-group {
-    /* 인풋창이 남은 공간을 다 차지하도록 */
     flex: 1;
     border-radius: 8px 0 0 8px !important;
     margin-bottom: 0 !important;
 }
 
+/* 메인 제출 버튼 (스카이 블루 통일) */
 .auth-submit-btn {
     width: 100%;
     padding: 16px;
@@ -98,10 +97,10 @@
 }
 
 .auth-links a:hover {
+    color: #00BFFF;
     text-decoration: underline;
 }
 
-/* 안내 메시지 스타일 */
 .feedback-msg {
     font-size: 13px;
     margin-top: 4px;
@@ -109,7 +108,6 @@
     min-height: 18px;
 }
 
-/* 입력창 옆 액션 버튼 */
 .btn-auth-action {
     background-color: #f1f5f9;
     border: 1px solid #cbd5e1;
@@ -127,7 +125,6 @@
     border-color: var(--sky-blue);
 }
 
-/* 확인 버튼 */
 .btn-auth-confirm {
     background-color: var(--sky-blue);
     border: none;
@@ -139,9 +136,7 @@
 
 .btn-auth-action,
 .btn-auth-confirm {
-    /* 버튼 글씨 안 깨지게 */
     white-space: nowrap;
-    /* 버튼 고정 너비 */
     width: 100px;
 }
 
@@ -185,7 +180,6 @@
     background-color: #02B350;
 }
 
-/* 일반 이메일 가입 버튼 (소셜버튼과 통일감) */
 .btn-email-start {
     background-color: #f1f5f9;
     border: 1px solid #cbd5e1;
@@ -196,7 +190,6 @@
     background-color: #e2e8f0;
 }
 
-/* 구분선 (또는) */
 .divider {
     display: flex;
     align-items: center;
@@ -219,4 +212,48 @@
 
 .divider::after {
     margin-left: .5em;
+}
+
+.error-text {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 5px;
+    display: none;
+}
+
+.success-text {
+    color: #198754;
+    font-size: 13px;
+    margin-top: 5px;
+    display: none;
+}
+
+/* 탭 메뉴 스타일 (중복 싹 지우고 가독성/스카이블루 컨셉 통합) */
+.nav-tabs {
+    border-bottom: 2px solid #cbd5e1;
+}
+
+.nav-tabs .nav-link {
+    color: #8f8f8f !important;
+    font-weight: 600;
+    border-radius: 8px 8px 0 0;
+    border: none;
+    background-color: #f8f9fa;
+    margin-right: 5px;
+    padding: 12px 20px;
+    transition: 0.2s;
+}
+
+.nav-tabs .nav-link.active {
+    color: #FFFFFF !important;
+    font-weight: 700;
+    background-color: #87CEEB !important;
+    border: none;
+    border-bottom: 3px solid #00BFFF;
+}
+
+/* 계정 찾기 폼 하단 캡션 색상 */
+.find-account-form .form-text.text-muted {
+    color: #555555 !important;
+    font-weight: 500;
 }
