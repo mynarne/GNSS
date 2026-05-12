@@ -1,6 +1,5 @@
 /* 메인페이지 스타일 */
 
-
 .hero-section {
     background: linear-gradient(135deg, var(--sky-blue) 0%, #e0f2fe 100%);
     border-radius: 30px;
@@ -12,8 +11,37 @@
 }
 
 .hero-title {
-    font-size: 3rem;
+    font-size: 48px;
+    /* rem 대신 px 고정 */
     font-weight: 800;
     margin-bottom: 20px;
     color: #0284c7;
+}
+
+.hero-section .btn-primary {
+    background-color: var(--sky-blue);
+    border-color: var(--sky-blue);
+    color: var(--white);
+    border-radius: 8px;
+    /* 둥근 모양을 살짝 각지게 변경 */
+    transition: background-color 0.2s;
+    /* 스케일 변화 삭제 */
+}
+
+.hero-section .btn-primary:hover {
+    background-color: var(--deep-sky-blue);
+    border-color: var(--deep-sky-blue);
+}
+
+.hero-section .btn-outline-primary {
+    color: var(--sky-blue);
+    border-color: var(--sky-blue);
+    background-color: var(--white);
+    border-radius: 8px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.hero-section .btn-outline-primary:hover {
+    background-color: var(--sky-blue);
+    color: var(--white);
 }

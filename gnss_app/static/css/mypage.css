@@ -32,6 +32,7 @@
     border-radius: 8px;
 }
 
+/* 메뉴 버튼 기본 스타일 */
 .mypage-menu-btn {
     display: flex;
     align-items: center;
@@ -43,13 +44,13 @@
     border: 1px solid #e9ecef;
     color: #333;
     text-decoration: none;
-    transition: all 0.2s ease-in-out;
     font-weight: 600;
+    transition: background-color 0.2s;
+    /* 배경색 변화만 남김 */
 }
 
 .mypage-menu-btn:hover {
     background-color: #e2e6ea;
-    transform: translateY(-2px);
     color: #000;
 }
 
@@ -59,4 +60,20 @@
     text-align: center;
     margin-right: 15px;
     color: #555;
+}
+
+/* 가입 경로별 텍스트 컬러 설정 */
+.provider-local {
+    color: #64748b;
+    /* 일반 회색 계열 */
+}
+
+.provider-kakao {
+    color: #fcc419;
+    /* 카카오 노란색 계열 (가독성을 위해 살짝 톤다운) */
+}
+
+.provider-naver {
+    color: #03C75A;
+    /* 네이버 초록색 */
 }

@@ -15,7 +15,7 @@
 
                 <ul class="nav nav-tabs mb-4" id="findAccountTab" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="find-id-tab" data-bs-toggle="tab" data-bs-target="#find-id" type="button" role="tab">아이디(이메일) 찾기</button>
+                        <button class="nav-link active" id="find-id-tab" data-bs-toggle="tab" data-bs-target="#find-id" type="button" role="tab">아이디 찾기</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="reset-pw-tab" data-bs-toggle="tab" data-bs-target="#reset-pw" type="button" role="tab">비밀번호 찾기</button>
@@ -23,17 +23,52 @@
                 </ul>
 
                 <div class="tab-content" id="findAccountTabContent">
-
                     <div class="tab-pane fade show active" id="find-id" role="tabpanel">
                         <form action="{{ url_for('auth.find_id') }}" method="POST">
                             <div class="mb-3">
                                 <label for="id_username" class="auth-label">이름</label>
                                 <input type="text" class="auth-input mb-0" id="id_username" name="username" placeholder="가입하신 이름을 입력하세요" required>
                             </div>
-                            <div class="mb-4 mt-3">
-                                <label for="id_phone" class="auth-label">전화번호</label>
-                                <input type="text" class="auth-input mb-0" id="id_phone" name="phone_number" placeholder="010-0000-0000" oninput="autoHyphen(this)" maxlength="13" required>
+
+                            <div class="mb-3 mt-3">
+                                <label class="auth-label d-block">인증 방법</label>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input search-type-radio" type="radio" name="id_search_type" id="id_search_email" value="email" data-target="id" checked>
+                                    <label class="form-check-label" for="id_search_email">이메일</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input search-type-radio" type="radio" name="id_search_type" id="id_search_phone" value="phone" data-target="id">
+                                    <label class="form-check-label" for="id_search_phone">전화번호</label>
+                                </div>
                             </div>
+
+                            <div class="mb-4" id="id_email_input_area">
+                                <div class="input-group">
+                                    <input type="email" class="form-control auth-input-group" id="id_email" name="email" placeholder="가입하신 이메일을 입력하세요">
+                                    <button type="button" class="btn-auth-action" onclick="requestVerifyCode('email', 'id_email', 'find_id', 'id-verify-section', this)">인증하기</button>
+                                </div>
+                            </div>
+                            <div class="mb-4" id="id_phone_input_area" style="display: none;">
+                                <div class="input-group">
+                                    <input type="text" class="form-control auth-input-group" id="id_phone" name="phone_number" placeholder="010-0000-0000" maxlength="13">
+                                    <button type="button" class="btn-auth-action" onclick="requestVerifyCode('phone', 'id_phone', 'find_id', 'id-verify-section', this)">인증하기</button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3" id="id-verify-section" style="display: none;">
+                                <div class="input-group">
+                                    <div class="position-relative flex-grow-1">
+                                        <input type="text" id="id-verify-code" class="form-control auth-input-group verify-code-input w-100 pe-5" placeholder="인증번호 6자리">
+                                        <div class="position-absolute top-50 end-0 translate-middle-y pe-3 d-flex align-items-center z-3">
+                                            <span class="text-danger small me-2 timer-display">03:00</span>
+                                            <button type="button" class="btn btn-link p-0 text-secondary text-decoration-none small btn-extend-time" onclick="extendVerifyTime('id-verify-section')">시간 연장</button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-auth-confirm z-3" onclick="verifyAuthCode(document.querySelector('input[name=\'id_search_type\']:checked').value === 'email' ? 'id_email' : 'id_phone', 'id-verify-code', 'id-verify-feedback', 'id-verify-section')">확인</button>
+                                </div>
+                                <div id="id-verify-feedback" class="feedback-msg verify-feedback-msg mt-2"></div>
+                            </div>
+
                             <button type="submit" class="auth-submit-btn">아이디 찾기</button>
                         </form>
                     </div>
@@ -44,12 +79,52 @@
                                 <label for="pw_username" class="auth-label">이름</label>
                                 <input type="text" class="auth-input mb-0" id="pw_username" name="username" placeholder="가입하신 이름을 입력하세요" required>
                             </div>
-                            <div class="mb-4 mt-3">
-                                <label for="pw_email" class="auth-label">아이디 (이메일)</label>
-                                <input type="email" class="auth-input mb-0" id="pw_email" name="email" placeholder="가입하신 이메일을 입력하세요" required>
+                            <div class="mb-3 mt-3">
+                                <label for="pw_login_id" class="auth-label">아이디</label>
+                                <input type="text" class="auth-input mb-0" id="pw_login_id" name="login_id" placeholder="가입하신 아이디를 입력하세요" required>
                             </div>
+
+                            <div class="mb-3 mt-3">
+                                <label class="auth-label d-block">인증 방법</label>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input search-type-radio" type="radio" name="pw_search_type" id="pw_search_email" value="email" data-target="pw" checked>
+                                    <label class="form-check-label" for="pw_search_email">이메일</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input search-type-radio" type="radio" name="pw_search_type" id="pw_search_phone" value="phone" data-target="pw">
+                                    <label class="form-check-label" for="pw_search_phone">전화번호</label>
+                                </div>
+                            </div>
+
+                            <div class="mb-4" id="pw_email_input_area">
+                                <div class="input-group">
+                                    <input type="email" class="form-control auth-input-group" id="pw_email" name="email" placeholder="가입하신 이메일을 입력하세요">
+                                    <button type="button" class="btn-auth-action" onclick="requestVerifyCode('email', 'pw_email', 'reset_pw', 'pw-verify-section', this)">인증하기</button>
+                                </div>
+                            </div>
+                            <div class="mb-4" id="pw_phone_input_area" style="display: none;">
+                                <div class="input-group">
+                                    <input type="text" class="form-control auth-input-group" id="pw_phone" name="phone_number" placeholder="010-0000-0000" maxlength="13">
+                                    <button type="button" class="btn-auth-action" onclick="requestVerifyCode('phone', 'pw_phone', 'reset_pw', 'pw-verify-section', this)">인증하기</button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3" id="pw-verify-section" style="display: none;">
+                                <div class="input-group">
+                                    <div class="position-relative flex-grow-1">
+                                        <input type="text" id="pw-verify-code" class="form-control auth-input-group verify-code-input w-100 pe-5" placeholder="인증번호 6자리">
+                                        <div class="position-absolute top-50 end-0 translate-middle-y pe-3 d-flex align-items-center z-3">
+                                            <span class="text-danger small me-2 timer-display">03:00</span>
+                                            <button type="button" class="btn btn-link p-0 text-secondary text-decoration-none small btn-extend-time" onclick="extendVerifyTime('pw-verify-section')">시간 연장</button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-auth-confirm z-3" onclick="verifyAuthCode(document.querySelector('input[name=\'pw_search_type\']:checked').value === 'email' ? 'pw_email' : 'pw_phone', 'pw-verify-code', 'pw-verify-feedback', 'pw-verify-section')">확인</button>
+                                </div>
+                                <div id="pw-verify-feedback" class="feedback-msg verify-feedback-msg mt-2"></div>
+                            </div>
+
                             <button type="submit" class="auth-submit-btn">임시 비밀번호 발급</button>
-                            <small class="form-text text-muted d-block mt-3 text-center">가입하신 이메일로 임시 비밀번호가 발송됩니다.</small>
+                            <small class="form-text text-muted d-block mt-3 text-center">인증 완료 후 버튼을 눌러주세요.</small>
                         </form>
                     </div>
 
@@ -62,4 +137,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 {% endblock %}

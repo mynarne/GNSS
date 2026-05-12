@@ -1,6 +1,5 @@
 /* 공용 스타일 및 토스트 알림 */
 
-
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
 :root {
@@ -19,22 +18,24 @@ body {
     transition: all 0.3s ease;
 }
 
-/* EveryTripLog 전용 카드 */
+/* EveryTripLog 전용 카드 (통통 튀는 호버 효과 완벽 제거) */
 .etl-card {
     background: var(--white);
     border-radius: 20px;
     padding: 32px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
     border: 1px solid #e2e8f0;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* 호버 시 부드러운 그림자 효과만 남기고 움직임(transform)은 뺐습니다. */
+    transition: box-shadow 0.3s ease;
 }
 
 .etl-card:hover {
-    transform: translateY(-8px) scale(1.01);
-    box-shadow: 0 20px 40px rgba(135, 206, 235, 0.2);
+    /* 기존 transform 속성(위로 올라가는 효과) 삭제 */
+    box-shadow: 0 15px 35px rgba(135, 206, 235, 0.15);
+    /* 그림자만 살짝 진해지게 변경 */
 }
 
-/* 통통 튀는 버튼 */
+/* 통통 튀는 버튼 (얘는 유지하시려면 두고, 빼려면 hover 속성에서 transform 삭제) */
 .btn-bouncy {
     background-color: var(--white);
     color: var(--sky-blue);
@@ -85,7 +86,7 @@ body {
     padding: 48px 0;
 }
 
-/* 폼 애니메이션 정지 */
+/* static-card (더 이상 안 쓰지만 혹시 몰라서 잔재만 둠) */
 .static-card {
     transition: none !important;
 }

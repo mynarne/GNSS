@@ -9,14 +9,17 @@
 {% block content %}
     <div class="row mt-4">
         <div class="col-md-5 mb-4">
-            <div class="etl-card h-100 p-4">
+            <div class="etl-card static-card h-100 p-4">
                 <div class="text-center mb-4">
                     <h3 class="fw-bold">{{ g.user.nickname }} <span class="fs-5 fw-normal text-muted">님, 환영합니다!</span></h3>
                     <p class="text-muted small">
                         가입 경로:
-                        {% if g.user.provider == 'local' %}이메일
-                        {% elif g.user.provider == 'kakao' %}카카오
-                        {% elif g.user.provider == 'naver' %}네이버
+                        {% if g.user.provider == 'local' %}
+                            <span class="provider-local">이메일</span>
+                        {% elif g.user.provider == 'kakao' %}
+                            <span class="provider-kakao fw-bold">카카오</span>
+                        {% elif g.user.provider == 'naver' %}
+                            <span class="provider-naver fw-bold">네이버</span>
                         {% endif %}
                     </p>
                 </div>
@@ -64,7 +67,7 @@
         </div>
 
         <div class="col-md-7 mb-4">
-            <div class="etl-card h-100 p-4">
+            <div class="etl-card static-card h-100 p-4">
                 <h4 class="fw-bold mb-4 border-bottom pb-2">
                     <i class="fa-solid fa-list mypage-icon text-primary me-2"></i>나의 문의 내역
                 </h4>

@@ -20,6 +20,7 @@ class User(db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
+    login_id = db.Column(db.String(80), unique=True, nullable=True) # 로그인 전용 아이디
     email = db.Column(db.String(120), unique=True, nullable=False)
     username = db.Column(db.String(80), nullable=False) # 실명
     nickname = db.Column(db.String(80), unique=True, nullable=False) # 개별 닉네임

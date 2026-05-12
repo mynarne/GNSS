@@ -12,14 +12,14 @@
             <h2 class="auth-header">로그인</h2>
             <form action="{{ url_for('auth.login') }}" method="POST">
                 <div class="mb-3">
-                    <label class="auth-label">이메일</label>
-                    <input type="email" name="email" class="auth-input mb-0" placeholder="example@email.com" required>
+                    <label class="auth-label">아이디</label>
+                    <input type="text" name="login_id" class="auth-input mb-0" placeholder="아이디를 입력하세요" required>
                 </div>
                 <div class="mb-4 mt-3">
                     <label class="auth-label">비밀번호</label>
                     <input type="password" name="password" class="auth-input mb-0" required>
                 </div>
-                <button type="submit" class="auth-submit-btn">이메일로 로그인</button>
+                <button type="submit" class="auth-submit-btn">로그인</button>
             </form>
 
             <div class="text-center mt-3 mb-2">

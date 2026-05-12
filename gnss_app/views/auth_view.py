@@ -29,7 +29,7 @@ def format_kst_time(dt_obj):
     if not dt_obj:
         return ''
 
-    return dt_obj.strftime('%Y.%m.%D %H:%M')
+    return dt_obj.strftime('%Y.%m.%d %H:%M')
 
 # 앱에 요청이 들어올 때마다 가장 먼저 실행
 @bp.before_app_request
@@ -114,6 +114,28 @@ def login_required(view):
     return wrapped_view
 
 
+# 아이디 검증 정규식 (영문 대소문자, 숫자, 밑줄(_)만 허용)
+ID_REGEX = re.compile(r'^[a-zA-Z0-9_]+$')
+
+# 아이디 중복 및 유효성 검사 (AJAX 통신용)
+@bp.route('/check-login-id', methods=['POST'])
+def check_login_id():
+    data = request.get_json()
+    login_id = data.get('login_id')
+
+    if not login_id:
+        return jsonify({'success': False, 'message': '아이디를 입력해주세요.'})
+
+    if not ID_REGEX.match(login_id):
+        return jsonify({'success': False, 'message': '아이디는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.'})
+
+    existing_user = User.query.filter_by(login_id=login_id).first()
+    if existing_user:
+        return jsonify({'success': False, 'message': '이미 사용 중인 아이디입니다.'})
+
+    return jsonify({'success': True, 'message': '사용 가능한 아이디입니다.'})
+
+
 # 이메일 중복 체크
 @bp.route("/check-email", methods=["POST"])
 def check_email():
@@ -128,7 +150,6 @@ def check_email():
         return jsonify({"status": "error", "message": "사용할 수 없는 도메인입니다."}), 400
 
     # 이메일 검증 제약 조건 확인
-
     if not is_valid_email_format(email):
         return jsonify({"status": "error", "message": "올바른 이메일 형식이 아닙니다."}), 400
 
@@ -189,7 +210,8 @@ def request_verification():
         return jsonify({"status": "error", "message": "필수 입력값이 누락되었습니다!"}), 400
 
     # 이메일 중복 및 도메인 제약 조건 확인 (이메일)
-    if target_type == 'email':
+    # 회원가입(signup) 목적일 때만 중복 검사
+    if target_type == 'email' and purpose == 'signup':
         if not is_valid_email_format(target_value) or not is_valid_domain(target_value):
             return jsonify({"status": "error", "message": "사용할 수 없는 이메일입니다!"}), 400
         if User.query.filter_by(email=target_value).first():
@@ -271,6 +293,19 @@ def verify_code():
     return jsonify({"status": "success", "message": "본인 인증이 완료되었습니다!"})
 
 
+# 인증번호 시간 연장 로직
+@bp.route("/extend-verify-time", methods=["POST"])
+def extend_verify_time():
+    # 세션에 인증번호가 없으면 에러 반환
+    if not session.get('verify_code'):
+        return jsonify({"status": "error", "message": "발송된 인증번호가 없거나 만료되었습니다. 재요청해주세요."}), 400
+
+    # 발송 시간을 현재 KST 시간으로 갱신하여 3분 연장
+    session['verify_time'] = get_kst_now().isoformat()
+
+    return jsonify({"status": "success", "message": "인증 시간이 3분 연장되었습니다!"})
+
+
 # 회원가입 로직
 @bp.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -279,6 +314,7 @@ def signup():
 
     if request.method == "POST":
         form_data = request.form
+        login_id = form_data.get("login_id", "").strip()
         email = form_data.get("email", "").strip()
         raw_phone = form_data.get("phone_number", "")
         phone_number = format_phone_number(raw_phone)
@@ -286,6 +322,11 @@ def signup():
         nickname = form_data.get("nickname", "").strip()
         password = form_data.get("password", "")
         password_confirm = form_data.get("password_confirm", "")
+
+        # 아이디 정규식 방어
+        if not login_id or not ID_REGEX.match(login_id):
+            flash("아이디는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다!")
+            return render_template("auth/signup.html", form_data=form_data)
 
         # 도메인 방어
         if not is_valid_domain(email):
@@ -308,6 +349,10 @@ def signup():
             return render_template("auth/signup.html", form_data=form_data)
 
         # 중복 방어
+        if User.query.filter_by(login_id=login_id).first():
+            flash("이미 존재하는 아이디입니다!")
+            return render_template("auth/signup.html", form_data=form_data)
+
         if User.query.filter_by(email=email).first():
             flash("이미 존재하는 이메일입니다!")
             return render_template("auth/signup.html", form_data=form_data)
@@ -320,7 +365,7 @@ def signup():
             flash("이미 존재하는 전화번호입니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
-        new_user = User(username=username, nickname=nickname, email=email, phone_number=phone_number)
+        new_user = User(login_id=login_id, username=username, nickname=nickname, email=email, phone_number=phone_number)
         new_user.set_password(password) # 암호화해서 저장
 
         db.session.add(new_user)
@@ -344,10 +389,11 @@ def login():
 
     if request.method == "POST":
         data = request.get_json() if request.is_json else request.form
-        email = data.get("email")
+        login_id = data.get("login_id")
         password = data.get("password")
 
-        user = User.query.filter_by(email=email).first()
+        # 소셜 유저는 이 폼을 사용하지 않으므로, local 계정만 조회하도록 처리
+        user = User.query.filter_by(login_id=login_id, provider='local').first()
 
         if user and user.check_password(password):
 
@@ -383,9 +429,9 @@ def login():
 
         if request.is_json:
             return jsonify({"status": "error",
-                            "message": "이메일이나 비밀번호가 일치하지 않습니다!"}), 401
+                            "message": "아이디나 비밀번호가 일치하지 않습니다!"}), 401
 
-        flash("이메일이나 비밀번호가 일치하지 않습니다!")
+        flash("아이디나 비밀번호가 일치하지 않습니다!")
         return redirect(url_for("auth.login"))
 
     # GET 방식일 때
@@ -652,22 +698,39 @@ def find_account():
     return render_template("auth/find_account.html")
 
 
-# 아이디(이메일) 찾기 로직
+# 아이디(login_id) 찾기 로직
 @bp.route("/find-id", methods=["POST"])
 def find_id():
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        # 계정을 찾을 때는 이메일 또는 전화번호를 사용 (소셜 제외)
+        email = request.form.get("email", "").strip()
         raw_phone = request.form.get("phone_number", "")
         phone_number = format_phone_number(raw_phone)
+        verify_target = email if email else phone_number
 
-        user = User.query.filter_by(username=username, phone_number=phone_number).first()
-        if user:
-            # 이메일 마스킹 처리 logic
-            email_parts = user.email.split('@')
-            masked_id = email_parts[0][:3] + '*' * (len(email_parts[0]) - 3) if len(email_parts[0]) > 3 else email_parts[0][:1] + '*' * (len(email_parts[0]) - 1)
-            flash(f"회원님의 이메일은 [{masked_id}@{email_parts[1]}] 입니다.")
+        # 본인 인증 확인 방어
+        if not session.get('is_verified') or session.get('verified_target') != verify_target:
+            flash("본인 인증을 완료해주세요!")
+            return render_template("auth/find_account.html")
+
+        user = None
+        if email:
+            user = User.query.filter_by(email=email, provider='local').first()
+        elif phone_number:
+            user = User.query.filter_by(phone_number=phone_number, provider='local').first()
+
+        if user and user.login_id:
+            # 아이디 마스킹 처리 logic
+            login_id = user.login_id
+            masked_id = login_id[:2] + '*' * (len(login_id) - 2) if len(login_id) > 2 else login_id[:1] + '*' * (len(login_id) - 1)
+            flash(f"회원님의 아이디는 [{masked_id}] 입니다.")
         else:
             flash("일치하는 정보가 없습니다.")
+
+        # 인증이 끝나면 세션 초기화
+        session.pop('is_verified', None)
+        session.pop('verified_target', None)
+        session.pop('verified_purpose', None)
 
     # GET일 때는 아이디 찾기 전용 화면 (또는 통합 페이지의 ID 탭)
     return render_template("auth/find_id.html")
@@ -677,10 +740,25 @@ def find_id():
 @bp.route("/reset-password", methods=["POST"])
 def reset_password():
     if request.method == "POST":
+        # 비밀번호 찾기는 아이디와 이메일로 검증
         username = request.form.get("username", "").strip()
+        login_id = request.form.get("login_id", "").strip()
         email = request.form.get("email", "").strip()
+        raw_phone = request.form.get("phone_number", "")
+        phone_number = format_phone_number(raw_phone)
+        verify_target = email if email else phone_number
 
-        user = User.query.filter_by(username=username, email=email).first()
+        # 본인 인증 확인 방어
+        if not session.get('is_verified') or session.get('verified_target') != verify_target:
+            flash("본인 인증을 완료해주세요!")
+            return render_template("auth/find_account.html")
+
+        user = None
+        if email:
+            user = User.query.filter_by(username=username, login_id=login_id, email=email).first()
+        elif phone_number:
+            user = User.query.filter_by(username=username, login_id=login_id, phone_number=phone_number).first()
+
         if user:
             if user.provider != 'local':
                 flash(f"해당 계정은 {user.provider.upper()} 로그인을 이용해주세요.")
@@ -696,6 +774,12 @@ def reset_password():
                 msg.body = f"임시 비밀번호: [{temp_pw}]\n로그인 후 즉시 변경해주세요."
                 mail.send(msg)
                 flash("이메일로 임시 비밀번호가 발송되었습니다.")
+
+                # 발급 성공 시 세션 초기화
+                session.pop('is_verified', None)
+                session.pop('verified_target', None)
+                session.pop('verified_purpose', None)
+
                 return redirect(url_for("auth.login"))
             except Exception as e:
                 flash("메일 발송 중 오류가 발생했습니다.")
