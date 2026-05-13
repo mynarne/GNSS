@@ -26,5 +26,9 @@ class VisitLog(db.Model):
     # 방별 닉네임 저장 컬럼
     room_nickname = db.Column(db.String(80), nullable=False)
 
+    photo_url = db.Column(db.String(500))  # 사진 경로
+    place_name = db.Column(db.String(200)) # 장소 이름
+    is_verified = db.Column(db.Boolean, default=False) # repr 에러 방지용
+
     def __repr__(self):
         return f'<VisitLog User:{self.user_id} Group:{self.group_id} Verified:{self.is_verified}>'

@@ -132,6 +132,51 @@ def record_visit():
     })
 
 
+@bp.route("/visit", methods=["POST"])
+@login_required
+def record_visit():
+    user = g.user
+    data = request.get_json()
+
+    raw_lat = data.get("latitude")
+    raw_lon = data.get("longitude")
+    group_id = data.get("group_id")
+
+    if raw_lat is None or raw_lon is None:
+        return jsonify({"status": "error", "message": "좌표가 없습니다!"}), 400
+
+    # 칼만 필터 엔진 적용 - 필터를 거치면 튀는 좌표가 잡히고 경로가 아주 부드러워짐
+    corrected_lat = kf_y.update(raw_lat)  # 위도는 y축
+    corrected_lon = kf_x.update(raw_lon)  # 경도는 x축
+
+    # 그룹 닉네임 가져오기 (없으면 개인)
+    room_nickname = "개인"
+    if group_id:
+        membership = GroupMember.query.filter_by(user_id=user.id, group_id=group_id).first()
+        if membership:
+            room_nickname = membership.room_nickname
+
+    # 보정된 좌표로 DB 저장
+    new_log = VisitLog(
+        user_id=user.id,
+        group_id=group_id,
+        room_nickname=room_nickname,
+        latitude=corrected_lat,
+        longitude=corrected_lon,
+        photo_url=data.get("photo_url"),
+        is_verified=True # 검증 완료
+    )
+
+    db.session.add(new_log)
+    db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": "칼만 필터로 보정된 위치 저장됨",
+        "coords": {"lat": corrected_lat, "lon": corrected_lon}
+    })
+
+
 # 404 에러 핸들러
 @bp.app_errorhandler(404)
 def page_not_found(e):

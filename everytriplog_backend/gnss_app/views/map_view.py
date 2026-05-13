@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from flask import Blueprint, render_template, jsonify
 from gnss_app.models.travel import db, TravelPlan, PlanItem
+from gnss_app.models.visit_log import VisitLog
 from gnss_app.views.auth_view import login_required
 
 load_dotenv()
@@ -29,3 +30,18 @@ def get_test_path():
         {"lat": 34.6691, "lng": 135.5063}  # 다시 근처로
     ]
     return jsonify(path_data)
+
+@bp.route("/api/my-logs")
+@login_required
+def get_my_logs():
+    # 로그인한 유저의 모든 방문 기록을 가져옵니다
+    logs = VisitLog.query.filter_by(user_id=g.user.id).order_by(VisitLog.visited_at.desc()).all()
+    
+    # JSON 형태로 변환해서 전송!
+    return jsonify([{
+        "latitude": log.latitude,
+        "longitude": log.longitude,
+        "place_name": log.place_name,
+        "photo_url": log.photo_url,
+        "visited_at": log.visited_at.strftime('%Y-%m-%D %H:%M')
+    } for log in logs])
