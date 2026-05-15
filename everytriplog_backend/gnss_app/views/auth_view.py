@@ -1,5 +1,4 @@
-### 사용자 인증 (로그인 / 회원가입)
-
+# gnss_app/views/auth_view.py
 import functools
 import random
 import re
@@ -7,6 +6,7 @@ import os
 import requests
 import string
 
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from textwrap import wrap
 from flask import Blueprint, request, jsonify, session, g, abort, render_template, redirect, url_for, flash
@@ -19,6 +19,10 @@ load_dotenv()
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
+# 프로필 사진 저장 경로 설정
+UPLOAD_FOLDER = 'uploads/profiles'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 # KST 반환 함수
 def get_kst_now():
     kst = timezone(timedelta(hours=9))
@@ -28,14 +32,12 @@ def get_kst_now():
 def format_kst_time(dt_obj):
     if not dt_obj:
         return ''
-
     return dt_obj.strftime('%Y.%m.%d %H:%M')
 
 # 앱에 요청이 들어올 때마다 가장 먼저 실행
 @bp.before_app_request
 def load_logged_in_user():
     user_id = session.get("user_id")
-
     if user_id is None:
         g.user = None
     else:
@@ -102,7 +104,7 @@ def login_required(view):
     def wrapped_view(*args, **kwargs):
         # 유저 정보가 없으면 401(권한 없음) 에러와 JSON을 반환
         if g.user is None:
-            if request.is_json:
+            if request.is_json or request.headers.get('Accept') == 'application/json':
                 return jsonify({
                     "status": "error",
                     "message": "로그인이 필요한 서비스입니다!"
@@ -136,7 +138,7 @@ def check_login_id():
     return jsonify({'success': True, 'message': '사용 가능한 아이디입니다.'})
 
 
-# 이메일 중복 체크
+# 이메일 중복 체크 (앱 연동 대응)
 @bp.route("/check-email", methods=["POST"])
 def check_email():
     data = request.get_json()
@@ -160,7 +162,7 @@ def check_email():
     return jsonify({"status": "available", "message": "사용 가능한 이메일 형식입니다."})
 
 
-# 닉네임 중복 체크
+# 닉네임 중복 체크 (앱 연동 대응)
 @bp.route("/check-nickname", methods=["POST"])
 def check_nickname():
     data = request.get_json()
@@ -306,104 +308,161 @@ def extend_verify_time():
     return jsonify({"status": "success", "message": "인증 시간이 3분 연장되었습니다!"})
 
 
-# 회원가입 로직
+# 회원가입 로직 (웹 및 앱 통합)
 @bp.route("/signup", methods=["GET", "POST"])
 def signup():
-
     form_data = {}
 
     if request.method == "POST":
+        # 앱(FormData)과 웹(form)을 모두 지원하도록 데이터 추출
         form_data = request.form
+        
         login_id = form_data.get("login_id", "").strip()
         email = form_data.get("email", "").strip()
         raw_phone = form_data.get("phone_number", "")
         phone_number = format_phone_number(raw_phone)
         username = form_data.get("username", "").strip()
+        real_name = form_data.get("real_name", "").strip() # 모바일 앱에서 넘겨주는 본명
         nickname = form_data.get("nickname", "").strip()
         password = form_data.get("password", "")
         password_confirm = form_data.get("password_confirm", "")
+        
+        # 모바일 앱에서 전달되는 프로필 이미지 처리
+        profile_file = request.files.get("profile_image")
+        profile_url = None
 
-        # 아이디 정규식 방어
-        if not login_id or not ID_REGEX.match(login_id):
+        if profile_file and profile_file.filename != '':
+            filename_prefix = datetime.now().strftime('%Y%m%d%H%M%S')
+            filename = secure_filename(f"{filename_prefix}_{profile_file.filename}")
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            profile_file.save(filepath)
+            profile_url = filepath
+
+        # 아이디 정규식 방어 (웹 가입 시 필수, 모바일은 이메일 기반이므로 예외 처리)
+        if login_id and not ID_REGEX.match(login_id):
+            if request.files or request.is_json:
+                return jsonify({"status": "error", "message": "아이디는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다!"}), 400
             flash("아이디는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
         # 도메인 방어
         if not is_valid_domain(email):
+            if request.files or request.is_json:
+                return jsonify({"status": "error", "message": "허용되지 않는 이메일 도메인입니다!"}), 400
             flash("허용되지 않는 이메일 도메인입니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
-        # 본인 인증 확인 방어
-        if not session.get('is_verified') or session.get('verified_target') != email:
-            flash("이메일 인증을 완료해주세요!")
-            return render_template("auth/signup.html", form_data=form_data)
+        # 본인 인증 확인 방어 (앱 연동 시 인증 단계를 별도로 뺄 수 있으므로 조건부 검사)
+        # 웹 환경에서는 세션 검증 유지
+        if not (request.files or request.is_json):
+            if not session.get('is_verified') or session.get('verified_target') != email:
+                flash("이메일 인증을 완료해주세요!")
+                return render_template("auth/signup.html", form_data=form_data)
 
         # 비밀번호 복잡도 방어 (서버단 최종 검증)
         if not is_valid_password(password):
+            if request.files or request.is_json:
+                return jsonify({"status": "error", "message": "비밀번호는 영문, 숫자, 특수문자를 포함하여 8~16자로 설정해야 합니다!"}), 400
             flash("비밀번호는 영문, 숫자, 특수문자를 포함하여 8~16자로 설정해야 합니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
         # 비밀번호 확인 방어
         if password != password_confirm:
+            if request.files or request.is_json:
+                return jsonify({"status": "error", "message": "비밀번호가 서로 일치하지 않습니다!"}), 400
             flash("비밀번호가 서로 일치하지 않습니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
         # 중복 방어
-        if User.query.filter_by(login_id=login_id).first():
+        if login_id and User.query.filter_by(login_id=login_id).first():
+            if request.files or request.is_json:
+                return jsonify({"status": "error", "message": "이미 존재하는 아이디입니다!"}), 400
             flash("이미 존재하는 아이디입니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
         if User.query.filter_by(email=email).first():
+            if request.files or request.is_json:
+                return jsonify({"status": "error", "message": "이미 존재하는 이메일입니다!"}), 400
             flash("이미 존재하는 이메일입니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
         if User.query.filter_by(nickname=nickname).first():
+            if request.files or request.is_json:
+                return jsonify({"status": "error", "message": "이미 존재하는 닉네임입니다!"}), 400
             flash("이미 존재하는 닉네임입니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
-        if User.query.filter_by(phone_number=phone_number).first():
+        if phone_number and User.query.filter_by(phone_number=phone_number).first():
             flash("이미 존재하는 전화번호입니다!")
             return render_template("auth/signup.html", form_data=form_data)
 
-        new_user = User(login_id=login_id, username=username, nickname=nickname, email=email, phone_number=phone_number)
+        # DB 저장: 웹(username)과 앱(real_name) 동시 지원
+        final_username = real_name if real_name else username
+        new_user = User(
+            login_id=login_id if login_id else email.split('@')[0], # 모바일은 이메일 앞부분을 임시 아이디로
+            username=final_username, 
+            nickname=nickname, 
+            email=email, 
+            phone_number=phone_number,
+            profile_url=profile_url
+        )
         new_user.set_password(password) # 암호화해서 저장
 
         db.session.add(new_user)
         db.session.commit()
 
-        # 가입 완료 후 세션 초기화
+        # 가입 완료 후 세션 초기화 (웹용)
         session.pop('is_verified', None)
         session.pop('verified_target', None)
         session.pop('verified_purpose', None)
 
-        flash(f"{username}님, 가입을 환영합니다!")
+        # 앱 요청(JSON/Multipart)인 경우 JSON 응답 반환
+        if request.files or request.is_json:
+            return jsonify({
+                "status": "success", 
+                "message": f"{nickname}님, 가입을 환영합니다!",
+                "user_id": new_user.id
+            }), 201
+
+        flash(f"{final_username}님, 가입을 환영합니다!")
         return redirect(url_for("auth.login"))
 
     # GET 방식일 때
     return render_template("auth/signup.html", form_data=form_data)
 
 
-# 로그인 로직
+# 로그인 로직 (웹 및 앱 통합)
 @bp.route("/login", methods=["GET", "POST"])
 def login():
-
     if request.method == "POST":
         data = request.get_json() if request.is_json else request.form
+        
+        # 웹은 login_id, 앱은 email로 로그인 시도 지원
         login_id = data.get("login_id")
+        email = data.get("email")
         password = data.get("password")
 
         # 소셜 유저는 이 폼을 사용하지 않으므로, local 계정만 조회하도록 처리
-        user = User.query.filter_by(login_id=login_id, provider='local').first()
+        if login_id:
+            user = User.query.filter_by(login_id=login_id, provider='local').first()
+        elif email:
+            user = User.query.filter_by(email=email, provider='local').first()
+        else:
+            user = None
 
         if user and user.check_password(password):
 
             # 정지 계정 확인 여부
             if user.status == 'banned' or user.is_banned:
+                if request.is_json:
+                    return jsonify({"status": "error", "message": "영구 정지된 계정입니다. 관리자에게 문의하세요."}), 403
                 flash("영구 정지된 계정입니다. 관리자에게 문의하세요.")
                 return redirect(url_for("auth.login"))
 
             if user.is_suspended():
                 unlock_time = format_kst_time(user.suspended_until)
+                if request.is_json:
+                    return jsonify({"status": "error", "message": f"정지된 계정입니다. {unlock_time} 이후에 이용 가능합니다."}), 403
                 flash(f"정지된 계정입니다. {unlock_time} 이후에 이용 가능합니다.")
                 return redirect(url_for("auth.login"))
 
@@ -418,18 +477,25 @@ def login():
 
             # 자동 로그인 기능 - 브라우저를 닫아도 로그인 유지
             session.permanent = True
-
             session["user_id"] = user.id
 
             if request.is_json:
-                return jsonify({"status": "success", "message": f"{user.nickname}님, 어서오세요!"})
+                return jsonify({
+                    "status": "success", 
+                    "message": f"{user.nickname}님, 어서오세요!",
+                    "token": str(user.id),
+                    "user_info": {
+                        "nickname": user.nickname,
+                        "email": user.email,
+                        "profile_url": user.profile_url
+                    }
+                }), 200
 
             flash(f"{user.nickname}님, 어서오세요!")
             return redirect(url_for("main.index"))
 
         if request.is_json:
-            return jsonify({"status": "error",
-                            "message": "아이디나 비밀번호가 일치하지 않습니다!"}), 401
+            return jsonify({"status": "error", "message": "아이디나 비밀번호가 일치하지 않습니다!"}), 401
 
         flash("아이디나 비밀번호가 일치하지 않습니다!")
         return redirect(url_for("auth.login"))
@@ -439,7 +505,7 @@ def login():
 
 
 # 로그아웃 로직 (세션 종료)
-@bp.route("/logout", methods=["GET"])
+@bp.route("/logout", methods=["GET", "POST"])
 @login_required
 def logout():
     session.clear()
@@ -787,3 +853,28 @@ def reset_password():
             flash("일치하는 정보가 없습니다.")
 
     return render_template("auth/reset_password.html")
+
+@bp.route("/me", methods=["GET"])
+def get_my_info():
+    """모바일 앱에서 토큰(user_id)을 보내면 내 정보를 반환하는 API"""
+    # 모바일은 세션 대신 Header에 토큰을 담아서 보냅니다.
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"status": "error", "message": "인증 토큰이 없습니다."}), 401
+    
+    # "Bearer 1" 형태에서 숫자(user_id)만 추출
+    token = auth_header.replace("Bearer ", "").strip()
+    user = User.query.get(token)
+    
+    if not user:
+        return jsonify({"status": "error", "message": "유저 정보를 찾을 수 없습니다."}), 404
+    
+    return jsonify({
+        "status": "success",
+        "data": {
+            "email": user.email,
+            "nickname": user.nickname,
+            "username": user.username,
+            "profile_url": user.profile_url
+        }
+    }), 200

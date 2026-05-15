@@ -20,6 +20,7 @@ class Group(db.Model):
     group_type = db.Column(db.String(20)) # individual, couple, family, friends
     invite_code = db.Column(db.String(10), unique=True) # 초대 코드
     max_members = db.Column(db.Integer, default=10, nullable=False) # 그룹 인원 수 제한
+    travel_title = db.Column(db.String(200)) # 여행 제목
     created_at = db.Column(db.DateTime, default=get_kst_now)
 
 
@@ -38,22 +39,6 @@ class GroupMember(db.Model):
     # 유저와 그룹 간의 관계 설정 (back_poppulates를 사용하여 양방향으로 묶어줌)
     user = db.relationship("User", backref=db.backref("memberships", cascade="all, delete-orphan"))
     group = db.relationship("Group", backref=db.backref("memberships", cascade="all, delete-orphan"))
-
-# 기존 방문 기록 로그 저장 테이블
-# class VisitLog(db.Model):
-#     __tablename__ = 'visit_logs'
-
-#     id = db.Column(db.Integer, primary_key=True)
-#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-#     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True) # None이면 개인 기록
-
-#     latitude = db.Column(db.Float, nullable=False)
-#     longitude = db.Column(db.Float, nullable=False)
-#     place_name = db.Column(db.String(200))
-#     photo_url = db.Column(db.String(500)) # 오라클 클라우드 스토리지 주소
-
-#     is_verified = db.Column(db.Boolean, default=False) # 알고리즘 검증 여부
-#     created_at = db.Column(db.DateTime, default=get_kst_now)
 
 
 # 여행 계획 틀 테이블
@@ -84,11 +69,11 @@ class PlanItem(db.Model):
     place_name = db.Column(db.String(200), nullable=False)        # 유저가 입력한 지명
     memo = db.Column(db.Text)                                     # 해당 장소에서 할 내용 등의 간단한 메모
 
-    # AI가 지명을 기반으로 찾아줄 좌표 (지도 표시용)
+    # 좌표 데이터
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
 
-    # 이 동선이 AI가 짜준 건지, 유저가 직접 넣은 건지 구분 (나중에 확장성용)
+    # AI 추천 여부 구분 플래그
     is_ai_recommended = db.Column(db.Boolean, default=False)
 
     plan = db.relationship("TravelPlan", backref=db.backref("items", cascade="all, delete-orphan", order_by="PlanItem.visit_order"))

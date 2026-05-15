@@ -1,10 +1,8 @@
-### 지도 구현 (구글맵 API 사용)
-
 import os
 from dotenv import load_dotenv
-from flask import Blueprint, render_template, jsonify
-from gnss_app.models.travel import db, TravelPlan, PlanItem
-from gnss_app.models.visit_log import VisitLog
+from flask import Blueprint, render_template, jsonify, request
+from gnss_app.models.travel import db, TravelPlan, PlanItem, GroupMember
+from gnss_app.models.visit_log import VisitLog, Photo
 from gnss_app.views.auth_view import login_required
 
 load_dotenv()
@@ -17,31 +15,52 @@ bp = Blueprint("map", __name__, url_prefix="/map")
 @login_required
 def map_test():
     maps_api = os.environ.get("GOOGLE_MAPS_KEY")
-    print(f"키 받아왔는지?: {maps_api}")
+    print(f"구글 맵 API 키 로드 상태: {maps_api}")
     return render_template("maps/map_test.html", maps_api=maps_api)
 
-# 경로 기록 테스트
-@bp.route("/api/test-path")
-def get_test_path():
-    path_data = [
-        {"lat": 34.6687, "lng": 135.5013}, # 도톤보리
-        {"lat": 34.6661, "lng": 135.5003}, # 난바역
-        {"lat": 34.6655, "lng": 135.5058}, # 구로몬 시장
-        {"lat": 34.6691, "lng": 135.5063}  # 다시 근처로
-    ]
-    return jsonify(path_data)
-
-@bp.route("/api/my-logs")
-@login_required
+# 내 방문 기록 및 썸네일 조회 API
+@bp.route("/api/my-logs", methods=["GET"])
+# @login_required
 def get_my_logs():
-    # 로그인한 유저의 모든 방문 기록을 가져옵니다
-    logs = VisitLog.query.filter_by(user_id=g.user.id).order_by(VisitLog.visited_at.desc()).all()
-    
-    # JSON 형태로 변환해서 전송!
-    return jsonify([{
-        "latitude": log.latitude,
-        "longitude": log.longitude,
-        "place_name": log.place_name,
-        "photo_url": log.photo_url,
-        "visited_at": log.visited_at.strftime('%Y-%m-%D %H:%M')
-    } for log in logs])
+    # 임시 테스트 유저
+    class DummyUser:
+        id = 1
+    user = DummyUser()
+
+    mode = request.args.get("mode", "personal")
+
+    query = VisitLog.query
+
+    # 1. 뷰 모드에 따라 데이터베이스 필터링
+    if mode == "personal" or mode == "hiking":
+        # 개인 기록: 그룹 ID가 없는 순수 내 기록
+        logs = query.filter_by(user_id=user.id, group_id=None).all()
+    elif mode == "group":
+        # 그룹 기록: 내가 속한 그룹들의 모든 기록
+        memberships = GroupMember.query.filter_by(user_id=user.id).all()
+        group_ids = [m.group_id for m in memberships]
+        logs = query.filter(VisitLog.group_id.in_(group_ids)).all() if group_ids else []
+    else:
+        logs = []
+
+    results = []
+    for log in logs:
+        # 2. 해당 방문 기록의 대표 이미지(썸네일) 조회
+        rep_photo = Photo.query.filter_by(visit_log_id=log.id, is_representative=True).first()
+        photo_url = rep_photo.photo_url if rep_photo else None
+
+        # 3. 프론트엔드로 보낼 JSON 데이터 조립 (지정된 날짜 포맷 적용)
+        visited_at_str = log.visited_at.strftime('%Y-%m-%D %H:%M:%S') if log.visited_at else None
+
+        results.append({
+            "id": log.id,
+            "title": log.room_nickname,
+            "coordinate": {
+                "latitude": log.latitude,
+                "longitude": log.longitude
+            },
+            "photo_url": photo_url,
+            "visited_at": visited_at_str
+        })
+
+    return jsonify(results)
